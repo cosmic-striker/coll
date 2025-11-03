@@ -170,18 +170,24 @@ def get_camera_stream(camera_id):
 def test_camera_connection(camera_id):
     try:
         camera = Camera.query.get_or_404(camera_id)
-        
+
         # Import here to avoid circular imports
-        from app.services.poller import test_camera_connection_task
-        
-        # Trigger async test task
-        task = test_camera_connection_task.delay(camera_id)
-        
-        return jsonify({
-            'msg': 'Camera connection test initiated',
-            'task_id': task.id,
-            'camera_id': camera_id
-        })
+        from app.services.poller import test_camera_connection_task, test_camera_sync
+
+        # Try to queue async test task; if Celery/broker isn't available, fall back to sync test
+        try:
+            task = test_camera_connection_task.delay(camera_id)
+            return jsonify({
+                'msg': 'Camera connection test initiated',
+                'task_id': task.id,
+                'camera_id': camera_id
+            })
+        except Exception:
+            # Celery/broker unavailable — run synchronous test and return result
+            result = test_camera_sync(camera_id)
+            if isinstance(result, dict) and result.get('error'):
+                return jsonify({'msg': 'Failed to test camera connection', 'error': result.get('error')}), 500
+            return jsonify({'msg': 'Camera connection test completed', 'result': result})
     except Exception as e:
         return jsonify({'msg': 'Failed to test camera connection', 'error': str(e)}), 500
 

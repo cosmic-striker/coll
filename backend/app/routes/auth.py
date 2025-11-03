@@ -123,30 +123,23 @@ def create_user():
         data = request.get_json()
         if not data:
             return jsonify({'msg': 'No input data provided'}), 400
-        
         username = data.get('username')
         email = data.get('email')
         password = data.get('password')
         role = data.get('role', 'viewer')
-        
         if not all([username, email, password]):
             return jsonify({'msg': 'Username, email and password required'}), 400
-        
         if role not in ['admin', 'operator', 'viewer']:
             return jsonify({'msg': 'Invalid role'}), 400
-        
         # Check if user exists
         if User.query.filter_by(username=username).first():
             return jsonify({'msg': 'Username already exists'}), 409
-        
         if User.query.filter_by(email=email).first():
             return jsonify({'msg': 'Email already exists'}), 409
-        
         user = User(username=username, email=email, role=role)
         user.set_password(password)
         db.session.add(user)
         db.session.commit()
-        
         return jsonify({
             'id': user.id,
             'username': user.username,
@@ -156,3 +149,59 @@ def create_user():
     except Exception as e:
         db.session.rollback()
         return jsonify({'msg': 'Failed to create user', 'error': str(e)}), 500
+
+# Update user
+@auth_bp.route('/users/<int:user_id>', methods=['PUT'])
+@admin_required
+def update_user(user_id):
+    try:
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({'msg': 'User not found'}), 404
+        data = request.get_json()
+        if not data:
+            return jsonify({'msg': 'No input data provided'}), 400
+        username = data.get('username')
+        email = data.get('email')
+        role = data.get('role')
+        password = data.get('password')
+        # Check for username/email uniqueness if changed
+        if username and username != user.username:
+            if User.query.filter_by(username=username).first():
+                return jsonify({'msg': 'Username already exists'}), 409
+            user.username = username
+        if email and email != user.email:
+            if User.query.filter_by(email=email).first():
+                return jsonify({'msg': 'Email already exists'}), 409
+            user.email = email
+        if role:
+            if role not in ['admin', 'operator', 'viewer']:
+                return jsonify({'msg': 'Invalid role'}), 400
+            user.role = role
+        if password:
+            user.set_password(password)
+        db.session.commit()
+        return jsonify({
+            'id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'role': user.role
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'msg': 'Failed to update user', 'error': str(e)}), 500
+
+# Delete user
+@auth_bp.route('/users/<int:user_id>', methods=['DELETE'])
+@admin_required
+def delete_user(user_id):
+    try:
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({'msg': 'User not found'}), 404
+        db.session.delete(user)
+        db.session.commit()
+        return jsonify({'msg': 'User deleted'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'msg': 'Failed to delete user', 'error': str(e)}), 500

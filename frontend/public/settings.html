@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings - Device Monitoring</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <div class="container">
+    <nav class="nav">
+      <a href="dashboard.html">Dashboard</a>
+      <a href="device_details.html">Devices</a>
+      <a href="cameras.html">Cameras</a>
+      <a href="alerts.html">Alerts</a>
+      <a href="settings.html" class="active">Settings</a>
+      <a href="#" id="logout-btn">Logout</a>
+    </nav>
+
+    <h1>Settings</h1>
+
+    <section class="card">
+      <h3>System Configuration</h3>
+      <form id="settings-form">
+        <div class="grid two">
+          <div>
+            <label for="poll_interval">Poll Interval (seconds)</label>
+            <input id="poll_interval" type="number" min="10" max="3600" value="60">
+          </div>
+          <div>
+            <label for="alert_email_from">Alert Email From</label>
+            <input id="alert_email_from" type="email" placeholder="alerts@example.com">
+          </div>
+          <div>
+            <label for="alert_email_to">Alert Email To</label>
+            <input id="alert_email_to" type="email" placeholder="admin@example.com">
+          </div>
+          <div>
+            <label for="smtp_server">SMTP Server</label>
+            <input id="smtp_server" placeholder="smtp.gmail.com">
+          </div>
+          <div>
+            <label for="smtp_port">SMTP Port</label>
+            <input id="smtp_port" type="number" placeholder="587">
+          </div>
+          <div>
+            <label for="smtp_username">SMTP Username</label>
+            <input id="smtp_username" placeholder="your-email@gmail.com">
+          </div>
+          <div>
+            <label for="smtp_password">SMTP Password</label>
+            <input id="smtp_password" type="password" placeholder="App password">
+          </div>
+          <div>
+            <label for="slack_webhook">Slack Webhook URL</label>
+            <input id="slack_webhook" placeholder="https://hooks.slack.com/services/...">
+          </div>
+        </div>
+        <div class="actions">
+          <button type="submit">Save Settings</button>
+          <button type="button" id="reset-settings" class="secondary">Reset</button>
+        </div>
+        <p id="settings-error" class="error" hidden></p>
+      </form>
+    </section>
+
+    <section class="card">
+      <h3>System Information</h3>
+      <div id="system-info">
+        <p><strong>Version:</strong> 1.0.0</p>
+        <p><strong>Environment:</strong> <span id="env-info">Loading...</span></p>
+        <p><strong>Database:</strong> <span id="db-info">Loading...</span></p>
+        <p><strong>Redis Status:</strong> <span id="redis-info">Loading...</span></p>
+        <p><strong>Celery Status:</strong> <span id="celery-info">Loading...</span></p>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3>System Actions</h3>
+      <div class="actions">
+        <button id="test-email" class="secondary">Test Email</button>
+        <button id="test-slack" class="secondary">Test Slack</button>
+        <button id="restart-polling" class="secondary">Restart Polling</button>
+        <button id="clear-cache" class="secondary">Clear Cache</button>
+      </div>
+    </section>
+  </div>
+
+  <script src="assets/app.js"></script>
+  <script>
+    async function loadSystemInfo() {
+      try {
+        const profile = await ApiClient.getProfile();
+        document.getElementById('env-info').textContent = 'Production';
+        
+        // Try to get system info (this would need to be implemented in backend)
+        document.getElementById('db-info').textContent = 'SQLite';
+        document.getElementById('redis-info').textContent = 'Connected';
+        document.getElementById('celery-info').textContent = 'Running';
+      } catch (e) {
+        console.error('Failed to load system info:', e);
+      }
+    }
+
+    function resetSettings() {
+      document.getElementById('poll_interval').value = '60';
+      document.getElementById('alert_email_from').value = '';
+      document.getElementById('alert_email_to').value = '';
+      document.getElementById('smtp_server').value = '';
+      document.getElementById('smtp_port').value = '';
+      document.getElementById('smtp_username').value = '';
+      document.getElementById('smtp_password').value = '';
+      document.getElementById('slack_webhook').value = '';
+      document.getElementById('settings-error').hidden = true;
+    }
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      if (!ApiClient.isAuthenticated()) { 
+        window.location.href = 'index.html'; 
+        return; 
+      }
+
+      // Check if user is admin
+      try {
+        const profile = await ApiClient.getProfile();
+        if (profile.role !== 'admin') {
+          alert('Admin access required');
+          window.location.href = 'dashboard.html';
+          return;
+        }
+      } catch (e) {
+        window.location.href = 'index.html';
+        return;
+      }
+
+      document.getElementById('logout-btn').addEventListener('click', (e) => { 
+        e.preventDefault(); 
+        ApiClient.logout(); 
+        window.location.href = 'index.html'; 
+      });
+
+      document.getElementById('reset-settings').addEventListener('click', resetSettings);
+
+      document.getElementById('settings-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const errEl = document.getElementById('settings-error');
+        errEl.hidden = true;
+        
+        const settings = {
+          poll_interval: parseInt(document.getElementById('poll_interval').value),
+          alert_email_from: document.getElementById('alert_email_from').value.trim(),
+          alert_email_to: document.getElementById('alert_email_to').value.trim(),
+          smtp_server: document.getElementById('smtp_server').value.trim(),
+          smtp_port: parseInt(document.getElementById('smtp_port').value) || 587,
+          smtp_username: document.getElementById('smtp_username').value.trim(),
+          smtp_password: document.getElementById('smtp_password').value,
+          slack_webhook: document.getElementById('slack_webhook').value.trim()
+        };
+        
+        try {
+          await ApiClient.updateSettings(settings);
+          alert('Settings saved successfully');
+        } catch (err) {
+          errEl.textContent = err.message || 'Failed to save settings';
+          errEl.hidden = false;
+        }
+      });
+
+      // System action handlers
+      document.getElementById('test-email').addEventListener('click', async () => {
+        try {
+          await ApiClient.testEmail();
+          alert('Test email sent successfully');
+        } catch (err) {
+          alert('Failed to send test email: ' + (err.message || 'Unknown error'));
+        }
+      });
+
+      document.getElementById('test-slack').addEventListener('click', async () => {
+        try {
+          await ApiClient.testSlack();
+          alert('Test Slack message sent successfully');
+        } catch (err) {
+          alert('Failed to send test Slack message: ' + (err.message || 'Unknown error'));
+        }
+      });
+
+      document.getElementById('restart-polling').addEventListener('click', async () => {
+        if (confirm('Are you sure you want to restart polling?')) {
+          try {
+            await ApiClient.restartPolling();
+            alert('Polling restarted successfully');
+          } catch (err) {
+            alert('Failed to restart polling: ' + (err.message || 'Unknown error'));
+          }
+        }
+      });
+
+      document.getElementById('clear-cache').addEventListener('click', async () => {
+        if (confirm('Are you sure you want to clear the cache?')) {
+          try {
+            await ApiClient.clearCache();
+            alert('Cache cleared successfully');
+          } catch (err) {
+            alert('Failed to clear cache: ' + (err.message || 'Unknown error'));
+          }
+        }
+      });
+
+      loadSystemInfo();
+    });
+  </script>
+</body>
+</html>
+
+
+

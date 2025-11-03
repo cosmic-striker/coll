@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cameras - Device Monitoring</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <div class="container">
+    <nav class="nav">
+      <a href="dashboard.html">Dashboard</a>
+      <a href="device_details.html">Devices</a>
+      <a href="cameras.html" class="active">Cameras</a>
+      <a href="alerts.html">Alerts</a>
+      <a href="settings.html">Settings</a>
+      <a href="#" id="logout-btn">Logout</a>
+    </nav>
+
+    <h1>Cameras</h1>
+
+    <section class="card">
+      <h3>Create / Update Camera</h3>
+      <form id="camera-form">
+        <input type="hidden" id="camera-id">
+        <div class="grid two">
+          <div>
+            <label for="c_name">Name</label>
+            <input id="c_name" required>
+          </div>
+          <div>
+            <label for="c_ip">IP Address</label>
+            <input id="c_ip" required>
+          </div>
+          <div>
+            <label for="c_rtsp">RTSP URL</label>
+            <input id="c_rtsp" required>
+          </div>
+          <div>
+            <label for="c_username">Username</label>
+            <input id="c_username">
+          </div>
+          <div>
+            <label for="c_password">Password</label>
+            <input id="c_password" type="password">
+          </div>
+          <div>
+            <label for="c_location">Location</label>
+            <input id="c_location">
+          </div>
+        </div>
+        <div class="actions">
+          <button type="submit">Save</button>
+          <button type="button" id="c_reset" class="secondary">Reset</button>
+        </div>
+        <p id="c_error" class="error" hidden></p>
+      </form>
+    </section>
+
+    <section class="card">
+      <div class="toolbar">
+        <h3>Camera List</h3>
+        <button id="c_refresh" class="secondary">Refresh</button>
+      </div>
+      <table class="table" id="cameras-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>IP</th>
+            <th>Status</th>
+            <th>Location</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </div>
+
+  <!-- Stream Modal -->
+  <div id="stream-modal" class="modal" hidden>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="stream-title">Camera Stream</h3>
+        <div class="modal-actions">
+          <button id="close-stream" class="close" title="Close">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div id="stream-container">
+          <video id="stream-video" controls autoplay muted>
+            <p>Your browser doesn't support HTML5 video.</p>
+          </video>
+          <div id="stream-info" class="stream-info"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="assets/app.js"></script>
+  <script>
+    function c_fillForm(c) {
+      document.getElementById('camera-id').value = c.id || '';
+      document.getElementById('c_name').value = c.name || '';
+      document.getElementById('c_ip').value = c.ip_address || '';
+      document.getElementById('c_rtsp').value = c.rtsp_url || '';
+      document.getElementById('c_username').value = c.username || '';
+      document.getElementById('c_password').value = '';
+      document.getElementById('c_location').value = c.location || '';
+    }
+    function c_resetForm() { c_fillForm({}); document.getElementById('c_error').hidden = true; }
+
+    async function showCameraStream(cameraId) {
+      try {
+        const camera = await ApiClient.getCamera(cameraId);
+        const streamInfo = await ApiClient.cameraStream(cameraId);
+        
+        document.getElementById('stream-title').textContent = `${camera.name} - Live Stream`;
+        document.getElementById('stream-info').innerHTML = `
+          <p><strong>Location:</strong> ${camera.location || 'N/A'}</p>
+          <p><strong>IP:</strong> ${camera.ip_address}</p>
+          <p><strong>RTSP URL:</strong> ${camera.rtsp_url}</p>
+          <p><strong>Status:</strong> ${camera.status || 'unknown'}</p>
+        `;
+        
+        const video = document.getElementById('stream-video');
+        const streamUrl = streamInfo.stream_url || camera.rtsp_url;
+        
+        // Try different video sources for better compatibility
+        video.innerHTML = `
+          <source src="${streamUrl}" type="video/mp4">
+          <source src="${streamUrl}" type="video/webm">
+          <source src="${streamUrl}" type="video/ogg">
+          <p>Your browser doesn't support HTML5 video or the stream format.</p>
+          <p><strong>Stream URL:</strong> ${streamUrl}</p>
+          <p>You can try opening this URL in a media player like VLC.</p>
+        `;
+        
+        video.load();
+        
+        // Handle video errors
+        video.addEventListener('error', (e) => {
+          console.error('Video error:', e);
+          video.innerHTML = `
+            <p>Unable to load video stream.</p>
+            <p><strong>Stream URL:</strong> ${streamUrl}</p>
+            <p>This might be due to:</p>
+            <ul>
+              <li>Camera is offline</li>
+              <li>Invalid credentials</li>
+              <li>Unsupported video format</li>
+              <li>Network connectivity issues</li>
+            </ul>
+            <p>Try opening <a href="${streamUrl}" target="_blank">${streamUrl}</a> in VLC or another media player.</p>
+          `;
+        });
+        
+        document.getElementById('stream-modal').hidden = false;
+      } catch (err) {
+        alert('Failed to load stream: ' + (err.message || 'Unknown error'));
+      }
+    }
+
+    async function c_load() {
+      const tbody = document.querySelector('#cameras-table tbody');
+      tbody.innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
+      try {
+        const list = await ApiClient.listCameras();
+        tbody.innerHTML = '';
+        list.forEach(c => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${c.name}</td>
+            <td>${c.ip_address}</td>
+            <td>${c.status || 'unknown'}</td>
+            <td>${c.location || ''}</td>
+            <td>
+              <button data-action="edit" data-id="${c.id}">Edit</button>
+              <button data-action="test" data-id="${c.id}">Test</button>
+              <button data-action="stream" data-id="${c.id}">View Stream</button>
+              <button data-action="delete" data-id="${c.id}" class="danger">Delete</button>
+            </td>`;
+          tbody.appendChild(tr);
+        });
+      } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="5">Failed to load cameras</td></tr>';
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      if (!ApiClient.isAuthenticated()) { window.location.href = 'index.html'; return; }
+
+      document.getElementById('logout-btn').addEventListener('click', (e) => { e.preventDefault(); ApiClient.logout(); window.location.href = 'index.html'; });
+      document.getElementById('c_refresh').addEventListener('click', c_load);
+      document.getElementById('c_reset').addEventListener('click', c_resetForm);
+      
+      // Stream modal handlers
+      document.getElementById('close-stream').addEventListener('click', () => {
+        closeStreamModal();
+      });
+      
+      document.getElementById('stream-modal').addEventListener('click', (e) => {
+        if (e.target.id === 'stream-modal') {
+          closeStreamModal();
+        }
+      });
+
+      // Close modal with Escape key
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !document.getElementById('stream-modal').hidden) {
+          closeStreamModal();
+        }
+      });
+
+      function closeStreamModal() {
+        const modal = document.getElementById('stream-modal');
+        const video = document.getElementById('stream-video');
+        modal.hidden = true;
+        video.src = '';
+        video.load(); // Reset video element
+      }
+
+      // Force close handler
+      document.getElementById('close-stream').addEventListener('click', () => {
+        const modal = document.getElementById('stream-modal');
+        modal.hidden = true;
+        modal.style.display = 'none';
+        console.log('Modal closed');
+      });
+
+      // Global function for emergency close (can be called from browser console)
+      window.forceCloseModal = function() {
+        const modal = document.getElementById('stream-modal');
+        if (modal) {
+          modal.hidden = true;
+          modal.style.display = 'none';
+          modal.remove();
+        }
+        console.log('Modal force closed');
+      };
+
+      document.getElementById('cameras-table').addEventListener('click', async (e) => {
+        const btn = e.target.closest('button'); if (!btn) return;
+        const id = btn.getAttribute('data-id'); const action = btn.getAttribute('data-action');
+        try {
+          if (action === 'edit') {
+            const c = await ApiClient.getCamera(id); c_fillForm(c); window.scrollTo({ top: 0, behavior: 'smooth' });
+          } else if (action === 'test') {
+            await ApiClient.testCamera(id);
+          } else if (action === 'stream') {
+            await showCameraStream(id);
+          } else if (action === 'delete') {
+            if (confirm('Delete this camera?')) { await ApiClient.deleteCamera(id); await c_load(); c_resetForm(); }
+          }
+        } catch (err) { alert(err.message || 'Action failed'); }
+      });
+
+      document.getElementById('camera-form').addEventListener('submit', async (e) => {
+        e.preventDefault(); const errEl = document.getElementById('c_error'); errEl.hidden = true;
+        const payload = {
+          name: document.getElementById('c_name').value.trim(),
+          ip_address: document.getElementById('c_ip').value.trim(),
+          rtsp_url: document.getElementById('c_rtsp').value.trim(),
+          username: document.getElementById('c_username').value.trim(),
+          password: document.getElementById('c_password').value,
+          location: document.getElementById('c_location').value.trim()
+        };
+        const id = document.getElementById('camera-id').value;
+        try {
+          if (id) { await ApiClient.updateCamera(id, payload); }
+          else { await ApiClient.createCamera(payload); }
+          await c_load(); c_resetForm();
+        } catch (err) { errEl.textContent = err.message || 'Save failed'; errEl.hidden = false; }
+      });
+
+      c_load();
+    });
+  </script>
+</body>
+</html>

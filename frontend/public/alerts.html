@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Alerts - Device Monitoring</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <div class="container">
+    <nav class="nav">
+      <a href="dashboard.html">Dashboard</a>
+      <a href="device_details.html">Devices</a>
+      <a href="cameras.html">Cameras</a>
+      <a href="alerts.html" class="active">Alerts</a>
+      <a href="settings.html">Settings</a>
+      <a href="#" id="logout-btn">Logout</a>
+    </nav>
+
+    <h1>Alerts</h1>
+
+    <section class="card">
+      <h3>Create Alert</h3>
+      <form id="alert-form">
+        <div class="grid two">
+          <div>
+            <label for="a_device_id">Device</label>
+            <select id="a_device_id" required>
+              <option value="">Select Device</option>
+            </select>
+          </div>
+          <div>
+            <label for="a_severity">Severity</label>
+            <select id="a_severity" required>
+              <option value="info">Info</option>
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="critical">Critical</option>
+            </select>
+          </div>
+          <div>
+            <label for="a_message">Message</label>
+            <input id="a_message" required placeholder="Alert message">
+          </div>
+          <div>
+            <label for="a_category">Category</label>
+            <input id="a_category" placeholder="Alert category">
+          </div>
+        </div>
+        <div class="actions">
+          <button type="submit">Create Alert</button>
+          <button type="button" id="a_reset" class="secondary">Reset</button>
+        </div>
+        <p id="a_error" class="error" hidden></p>
+      </form>
+    </section>
+
+    <section class="card">
+      <div class="grid two">
+        <div>
+          <label for="f_severity">Severity</label>
+          <select id="f_severity">
+            <option value="">All</option>
+            <option value="critical">Critical</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+            <option value="info">Info</option>
+          </select>
+        </div>
+        <div>
+          <label for="f_ack">Acknowledged</label>
+          <select id="f_ack">
+            <option value="">All</option>
+            <option value="true">Yes</option>
+            <option value="false">No</option>
+          </select>
+        </div>
+      </div>
+      <div class="actions">
+        <button id="a_filter" class="secondary">Apply Filters</button>
+        <button id="a_ack_all">Acknowledge All (filtered)</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="toolbar">
+        <h3>Alert List</h3>
+        <div>
+          <button id="a_prev" class="secondary">Prev</button>
+          <button id="a_next" class="secondary">Next</button>
+        </div>
+      </div>
+      <table class="table" id="alerts-table">
+        <thead>
+          <tr>
+            <th>Created</th>
+            <th>Device</th>
+            <th>Severity</th>
+            <th>Message</th>
+            <th>Ack</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </div>
+
+  <script src="assets/app.js"></script>
+  <script>
+    let page = 1; const per_page = 20; let lastPages = 1;
+
+    async function loadDevices() {
+      try {
+        const devices = await ApiClient.listDevices();
+        const select = document.getElementById('a_device_id');
+        select.innerHTML = '<option value="">Select Device</option>';
+        devices.forEach(d => {
+          const option = document.createElement('option');
+          option.value = d.id;
+          option.textContent = d.name;
+          select.appendChild(option);
+        });
+      } catch (e) {
+        console.error('Failed to load devices:', e);
+      }
+    }
+
+    function resetAlertForm() {
+      document.getElementById('a_device_id').value = '';
+      document.getElementById('a_severity').value = 'info';
+      document.getElementById('a_message').value = '';
+      document.getElementById('a_category').value = '';
+      document.getElementById('a_error').hidden = true;
+    }
+
+    async function loadAlerts() {
+      const tbody = document.querySelector('#alerts-table tbody');
+      tbody.innerHTML = '<tr><td colspan="6">Loading...</td></tr>';
+      try {
+        const params = { page, per_page };
+        const sev = document.getElementById('f_severity').value; if (sev) params.severity = sev;
+        const ack = document.getElementById('f_ack').value; if (ack !== '') params.acknowledged = ack;
+        const data = await ApiClient.listAlerts(params);
+        lastPages = data.pagination.pages || 1;
+        tbody.innerHTML = '';
+        data.alerts.forEach(a => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${a.created_at}</td>
+            <td>${a.device_name || ''}</td>
+            <td>${a.severity}</td>
+            <td>${a.message}</td>
+            <td>${a.acknowledged ? 'Yes' : 'No'}</td>
+            <td>
+              ${a.acknowledged ? '' : `<button data-action="ack" data-id="${a.id}">Acknowledge</button>`}
+            </td>`;
+          tbody.appendChild(tr);
+        });
+      } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="6">Failed to load alerts</td></tr>';
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      if (!ApiClient.isAuthenticated()) { window.location.href = 'index.html'; return; }
+      document.getElementById('logout-btn').addEventListener('click', (e) => { e.preventDefault(); ApiClient.logout(); window.location.href = 'index.html'; });
+
+      document.getElementById('a_filter').addEventListener('click', () => { page = 1; loadAlerts(); });
+      document.getElementById('a_prev').addEventListener('click', () => { if (page > 1) { page--; loadAlerts(); } });
+      document.getElementById('a_next').addEventListener('click', () => { if (page < lastPages) { page++; loadAlerts(); } });
+      document.getElementById('a_reset').addEventListener('click', resetAlertForm);
+      
+      // Alert creation form
+      document.getElementById('alert-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const errEl = document.getElementById('a_error');
+        errEl.hidden = true;
+        
+        const payload = {
+          device_id: parseInt(document.getElementById('a_device_id').value),
+          severity: document.getElementById('a_severity').value,
+          message: document.getElementById('a_message').value.trim(),
+          category: document.getElementById('a_category').value.trim() || 'manual'
+        };
+        
+        try {
+          await ApiClient.createAlert(payload);
+          resetAlertForm();
+          await loadAlerts();
+        } catch (err) {
+          errEl.textContent = err.message || 'Failed to create alert';
+          errEl.hidden = false;
+        }
+      });
+      document.getElementById('alerts-table').addEventListener('click', async (e) => {
+        const btn = e.target.closest('button'); if (!btn) return; const id = btn.getAttribute('data-id');
+        if (btn.getAttribute('data-action') === 'ack') { try { await ApiClient.acknowledgeAlert(id); await loadAlerts(); } catch (err) { alert(err.message || 'Action failed'); } }
+      });
+      document.getElementById('a_ack_all').addEventListener('click', async () => {
+        const sev = document.getElementById('f_severity').value;
+        try { await ApiClient.acknowledgeAllAlerts(sev ? { severity: sev } : {}); await loadAlerts(); } catch (err) { alert(err.message || 'Action failed'); }
+      });
+
+      loadDevices();
+      loadAlerts();
+    });
+  </script>
+</body>
+</html>

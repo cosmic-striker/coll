@@ -1,1 +1,130 @@
-<!-- dashboard.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - Device Monitoring</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <div class="container">
+    <nav class="nav">
+      <a href="dashboard.html" class="active">Dashboard</a>
+      <a href="device_details.html">Devices</a>
+      <a href="cameras.html">Cameras</a>
+      <a href="alerts.html">Alerts</a>
+      <a href="settings.html">Settings</a>
+      <a href="#" id="logout-btn">Logout</a>
+    </nav>
+
+    <h1>Dashboard</h1>
+
+    <div class="toolbar">
+      <div></div>
+      <button id="refresh-dashboard" class="secondary">Refresh</button>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h3>Devices</h3>
+        <div id="devices-summary">Loading...</div>
+        <a href="device_details.html">Manage devices →</a>
+      </div>
+      <div class="card">
+        <h3>Cameras</h3>
+        <div id="cameras-summary">Loading...</div>
+        <a href="cameras.html">Manage cameras →</a>
+      </div>
+      <div class="card">
+        <h3>Alerts</h3>
+        <div id="alerts-summary">Loading...</div>
+        <a href="alerts.html">View alerts →</a>
+      </div>
+    </div>
+
+    <section class="card">
+      <h3>Recent Alerts</h3>
+      <ul id="recent-alerts" class="list"></ul>
+    </section>
+  </div>
+
+  <script src="assets/app.js"></script>
+  <script>
+    let refreshInterval;
+    
+    async function loadDashboardData() {
+      try {
+        const [dev, cam, alerts] = await Promise.all([
+          ApiClient.devicesStatus(),
+          ApiClient.camerasStatus(),
+          ApiClient.alertsSummary()
+        ]);
+        document.getElementById('devices-summary').textContent = `${dev.online} online / ${dev.offline} offline / ${dev.unknown} unknown (total ${dev.total})`;
+        document.getElementById('cameras-summary').textContent = `${cam.online} online / ${cam.offline} offline / ${cam.unknown} unknown (total ${cam.total})`;
+        document.getElementById('alerts-summary').textContent = `${alerts.unacknowledged} unacknowledged • ${alerts.critical} critical • ${alerts.high} high (total ${alerts.total})`;
+        const recent = alerts.recent || [];
+        const ul = document.getElementById('recent-alerts');
+        ul.innerHTML = '';
+        if (!recent.length) {
+          const li = document.createElement('li');
+          li.textContent = 'No recent alerts.';
+          ul.appendChild(li);
+        } else {
+          recent.forEach(a => {
+            const li = document.createElement('li');
+            li.textContent = `[${a.severity}] ${a.device_name || 'N/A'} - ${a.message}`;
+            ul.appendChild(li);
+          });
+        }
+      } catch (e) {
+        document.getElementById('devices-summary').textContent = 'Failed to load';
+        document.getElementById('cameras-summary').textContent = 'Failed to load';
+        document.getElementById('alerts-summary').textContent = 'Failed to load';
+        console.error(e);
+      }
+    }
+
+    function startAutoRefresh() {
+      // Refresh every 30 seconds
+      refreshInterval = setInterval(loadDashboardData, 30000);
+    }
+
+    function stopAutoRefresh() {
+      if (refreshInterval) {
+        clearInterval(refreshInterval);
+        refreshInterval = null;
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      if (!ApiClient.isAuthenticated()) {
+        window.location.href = 'index.html';
+        return;
+      }
+
+      document.getElementById('logout-btn').addEventListener('click', (e) => {
+        e.preventDefault();
+        ApiClient.logout();
+        window.location.href = 'index.html';
+      });
+
+      document.getElementById('refresh-dashboard').addEventListener('click', loadDashboardData);
+
+      // Load initial data
+      await loadDashboardData();
+      
+      // Start auto-refresh
+      startAutoRefresh();
+      
+      // Stop auto-refresh when page becomes hidden
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+          stopAutoRefresh();
+        } else {
+          startAutoRefresh();
+        }
+      });
+    });
+  </script>
+</body>
+</html>
