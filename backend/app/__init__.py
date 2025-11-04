@@ -79,12 +79,26 @@ def configure_logging(app):
 
 def make_celery(app):
     from celery import Celery
-    celery_app = Celery(
-        app.import_name,
-        backend=app.config['CELERY_RESULT_BACKEND'],
-        broker=app.config['CELERY_BROKER_URL']
+
+    # Fallbacks to avoid None when Flask drops lowercase config keys
+    default_broker = os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/0')
+    default_backend = os.getenv('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
+    default_imports = ('app.services.poller', 'app.services.alerting')
+
+    broker_url = app.config.get('broker_url') or default_broker
+    result_backend = app.config.get('result_backend') or default_backend
+    imports = app.config.get('imports') or default_imports
+
+    celery_app = Celery(app.import_name)
+    celery_app.conf.update(
+        broker_url=broker_url,
+        result_backend=result_backend,
+        imports=imports,
+        timezone='UTC',
+        task_serializer='json',
+        result_serializer='json',
+        accept_content=['json']
     )
-    celery_app.conf.update(app.config)
 
     class ContextTask(celery_app.Task):
         def __call__(self, *args, **kwargs):

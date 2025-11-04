@@ -21,8 +21,8 @@ logging.basicConfig(
 )
 
 # Create Flask app with proper configuration
-config_name = os.environ.get('FLASK_ENV', 'app.config.Config')
-app = create_app(config_name)
+# Do not treat FLASK_ENV as a config object path; use default Config
+app = create_app()
 
 # Initialize Celery with Flask app context
 celery = make_celery(app)

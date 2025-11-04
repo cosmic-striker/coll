@@ -1,1 +1,267 @@
-<!-- device_details.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Devices - Device Monitoring</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <div class="container">
+    <nav class="nav">
+      <a href="dashboard.html">Dashboard</a>
+      <a href="device_details.html" class="active">Devices</a>
+      <a href="cameras.html">Cameras</a>
+      <a href="alerts.html">Alerts</a>
+      <a href="settings.html">Settings</a>
+      <a href="#" id="logout-btn">Logout</a>
+    </nav>
+
+    <h1>Devices</h1>
+
+    <section class="card">
+      <h3>Create / Update Device</h3>
+      <form id="device-form">
+        <input type="hidden" id="device-id">
+        <div class="grid two">
+          <div>
+            <label for="name">Name</label>
+            <input id="name" required>
+          </div>
+          <div>
+            <label for="ip_address">IP Address</label>
+            <input id="ip_address" required>
+          </div>
+          <div>
+            <label for="vendor">Vendor</label>
+            <input id="vendor">
+          </div>
+          <div>
+            <label for="device_type">Type</label>
+            <input id="device_type">
+          </div>
+          <div>
+            <label for="snmp_community">SNMP Community</label>
+            <input id="snmp_community" value="public">
+          </div>
+        </div>
+        <div class="actions">
+          <button type="submit" id="save-btn">Save</button>
+          <button type="button" id="reset-btn" class="secondary">Reset</button>
+        </div>
+        <p id="form-error" class="error" hidden></p>
+      </form>
+    </section>
+
+    <section class="card">
+      <div class="toolbar">
+        <h3>Device List</h3>
+        <div>
+          <button id="refresh-btn" class="secondary">Refresh</button>
+          <button id="d_poll_all" class="secondary">Poll All</button>
+          <button id="d_delete_selected" class="danger" disabled>Delete Selected</button>
+        </div>
+      </div>
+      <table class="table" id="devices-table">
+        <thead>
+          <tr>
+            <th><input type="checkbox" id="select-all"></th>
+            <th>Name</th>
+            <th>IP</th>
+            <th>Vendor</th>
+            <th>Type</th>
+            <th>Status</th>
+            <th>Last Seen</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </div>
+
+  <script src="assets/app.js"></script>
+  <script>
+    function fillForm(device) {
+      document.getElementById('device-id').value = device.id || '';
+      document.getElementById('name').value = device.name || '';
+      document.getElementById('ip_address').value = device.ip_address || '';
+      document.getElementById('vendor').value = device.vendor || '';
+      document.getElementById('device_type').value = device.device_type || '';
+      document.getElementById('snmp_community').value = device.snmp_community || 'public';
+    }
+
+    function resetForm() {
+      fillForm({});
+      document.getElementById('form-error').hidden = true;
+    }
+
+    async function loadDevices() {
+      const tbody = document.querySelector('#devices-table tbody');
+      tbody.innerHTML = '<tr><td colspan="8">Loading...</td></tr>';
+      try {
+        const devices = await ApiClient.listDevices();
+        tbody.innerHTML = '';
+        devices.forEach(d => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><input type="checkbox" class="device-checkbox" data-id="${d.id}"></td>
+            <td>${d.name}</td>
+            <td>${d.ip_address}</td>
+            <td>${d.vendor || ''}</td>
+            <td>${d.device_type || ''}</td>
+            <td>${d.status || 'unknown'}</td>
+            <td>${d.last_seen || ''}</td>
+            <td>
+              <button data-action="edit" data-id="${d.id}">Edit</button>
+              <button data-action="poll" data-id="${d.id}">Poll</button>
+              <button data-action="delete" data-id="${d.id}" class="danger">Delete</button>
+            </td>`;
+          tbody.appendChild(tr);
+        });
+        updateBulkActions();
+      } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="8">Failed to load devices</td></tr>';
+        console.error(e);
+      }
+    }
+
+    function updateBulkActions() {
+      const checkboxes = document.querySelectorAll('.device-checkbox');
+      const deleteBtn = document.getElementById('d_delete_selected');
+      const selectAllCheckbox = document.getElementById('select-all');
+      
+      const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+      deleteBtn.disabled = checkedCount === 0;
+      
+      // Update select all checkbox state
+      if (checkedCount === 0) {
+        selectAllCheckbox.indeterminate = false;
+        selectAllCheckbox.checked = false;
+      } else if (checkedCount === checkboxes.length) {
+        selectAllCheckbox.indeterminate = false;
+        selectAllCheckbox.checked = true;
+      } else {
+        selectAllCheckbox.indeterminate = true;
+      }
+    }
+
+    function getSelectedDeviceIds() {
+      return Array.from(document.querySelectorAll('.device-checkbox:checked'))
+        .map(cb => cb.getAttribute('data-id'));
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      if (!ApiClient.isAuthenticated()) {
+        window.location.href = 'index.html';
+        return;
+      }
+
+      document.getElementById('logout-btn').addEventListener('click', (e) => {
+        e.preventDefault();
+        ApiClient.logout();
+        window.location.href = 'index.html';
+      });
+
+      document.getElementById('refresh-btn').addEventListener('click', loadDevices);
+      document.getElementById('reset-btn').addEventListener('click', resetForm);
+
+      // Bulk operation handlers
+      document.getElementById('select-all').addEventListener('change', (e) => {
+        const checkboxes = document.querySelectorAll('.device-checkbox');
+        checkboxes.forEach(cb => cb.checked = e.target.checked);
+        updateBulkActions();
+      });
+
+      document.getElementById('d_poll_all').addEventListener('click', async () => {
+        try {
+          const devices = await ApiClient.listDevices();
+          const pollPromises = devices.map(d => ApiClient.pollDevice(d.id));
+          await Promise.all(pollPromises);
+          await loadDevices();
+          alert('All devices polled successfully');
+        } catch (err) {
+          alert('Failed to poll all devices: ' + (err.message || 'Unknown error'));
+        }
+      });
+
+      document.getElementById('d_delete_selected').addEventListener('click', async () => {
+        const selectedIds = getSelectedDeviceIds();
+        if (selectedIds.length === 0) return;
+        
+        if (confirm(`Are you sure you want to delete ${selectedIds.length} selected device(s)?`)) {
+          try {
+            const deletePromises = selectedIds.map(id => ApiClient.deleteDevice(id));
+            await Promise.all(deletePromises);
+            await loadDevices();
+            resetForm();
+            alert('Selected devices deleted successfully');
+          } catch (err) {
+            alert('Failed to delete selected devices: ' + (err.message || 'Unknown error'));
+          }
+        }
+      });
+
+      // Checkbox change handler
+      document.addEventListener('change', (e) => {
+        if (e.target.classList.contains('device-checkbox')) {
+          updateBulkActions();
+        }
+      });
+
+      document.getElementById('devices-table').addEventListener('click', async (e) => {
+        const btn = e.target.closest('button');
+        if (!btn) return;
+        const id = btn.getAttribute('data-id');
+        const action = btn.getAttribute('data-action');
+        try {
+          if (action === 'edit') {
+            const d = await ApiClient.getDevice(id);
+            fillForm(d);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          } else if (action === 'poll') {
+            await ApiClient.pollDevice(id);
+            await loadDevices();
+          } else if (action === 'delete') {
+            if (confirm('Delete this device?')) {
+              await ApiClient.deleteDevice(id);
+              await loadDevices();
+              resetForm();
+            }
+          }
+        } catch (err) {
+          alert(err.message || 'Action failed');
+        }
+      });
+
+      document.getElementById('device-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const errorEl = document.getElementById('form-error');
+        errorEl.hidden = true;
+        const payload = {
+          name: document.getElementById('name').value.trim(),
+          ip_address: document.getElementById('ip_address').value.trim(),
+          vendor: document.getElementById('vendor').value.trim(),
+          device_type: document.getElementById('device_type').value.trim(),
+          snmp_community: document.getElementById('snmp_community').value.trim()
+        };
+        const id = document.getElementById('device-id').value;
+        try {
+          if (id) {
+            await ApiClient.updateDevice(id, payload);
+          } else {
+            await ApiClient.createDevice(payload);
+          }
+          await loadDevices();
+          resetForm();
+        } catch (err) {
+          errorEl.textContent = err.message || 'Save failed';
+          errorEl.hidden = false;
+        }
+      });
+
+      loadDevices();
+    });
+  </script>
+</body>
+</html>

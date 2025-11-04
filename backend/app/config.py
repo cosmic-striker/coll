@@ -7,8 +7,13 @@ class Config:
 
     JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'jwt-secret-key')
 
-    CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://redis:6379/0')
-    CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://redis:6379/0')
+    # Celery (new-style config)
+    broker_url = os.environ.get('CELERY_BROKER_URL', os.environ.get('broker_url', 'redis://localhost:6379/0'))
+    result_backend = os.environ.get('CELERY_RESULT_BACKEND', os.environ.get('result_backend', 'redis://localhost:6379/0'))
+    imports = (
+        'app.services.poller',
+        'app.services.alerting',
+    )
 
     POLL_INTERVAL_SECONDS = 60  # polling interval, configurable
     ALERT_EMAIL_FROM = os.environ.get('ALERT_EMAIL_FROM', 'alerts@example.com')

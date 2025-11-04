@@ -1,1 +1,69 @@
-<!-- index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Device Monitoring - Login</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Device Monitoring</h1>
+    <div id="login-card" class="card">
+      <h2>Login</h2>
+      <form id="login-form">
+        <label for="username">Username</label>
+        <input type="text" id="username" name="username" required>
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" required>
+        <button type="submit">Sign in</button>
+        <p id="login-error" class="error" hidden></p>
+      </form>
+    </div>
+    <div id="app-shell" class="hidden">
+      <nav class="nav">
+        <a href="dashboard.html">Dashboard</a>
+        <a href="device_details.html">Devices</a>
+        <a href="cameras.html">Cameras</a>
+        <a href="alerts.html">Alerts</a>
+        <a href="settings.html">Settings</a>
+        <a href="#" id="logout-btn">Logout</a>
+      </nav>
+      <main id="content"></main>
+    </div>
+  </div>
+  <script src="assets/app.js"></script>
+  <script>
+    window.addEventListener('DOMContentLoaded', () => {
+      const loginForm = document.getElementById('login-form');
+      const loginError = document.getElementById('login-error');
+      const logoutBtn = document.getElementById('logout-btn');
+
+      if (ApiClient.isAuthenticated()) {
+        window.location.href = 'dashboard.html';
+        return;
+      }
+
+      loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        loginError.hidden = true;
+        try {
+          const username = document.getElementById('username').value.trim();
+          const password = document.getElementById('password').value;
+          await ApiClient.login(username, password);
+          window.location.href = 'dashboard.html';
+        } catch (err) {
+          loginError.textContent = err.message || 'Login failed';
+          loginError.hidden = false;
+        }
+      });
+
+      logoutBtn?.addEventListener('click', (e) => {
+        e.preventDefault();
+        ApiClient.logout();
+        window.location.href = 'index.html';
+      });
+    });
+  </script>
+</body>
+</html>

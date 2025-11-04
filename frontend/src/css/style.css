@@ -1,1 +1,41 @@
 /* style.css */
+:root { --bg:#0b1220; --panel:#121a2b; --muted:#7f8ba3; --text:#e7ecf5; --accent:#4f8cff; --danger:#ff5c5c; }
+* { box-sizing: border-box; }
+html, body { margin:0; padding:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background: var(--bg); color: var(--text); }
+
+.container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+
+.nav { display:flex; gap:16px; background: var(--panel); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; }
+.nav a { color: var(--text); text-decoration: none; opacity: .9; }
+.nav a.active { color: var(--accent); font-weight: 600; }
+
+h1 { margin: 8px 0 16px; font-size: 24px; }
+h2, h3 { margin: 0 0 12px; }
+
+.grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:16px; }
+.grid.two { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px 16px; }
+
+.card { background: var(--panel); border-radius: 12px; padding: 16px; box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset, 0 10px 30px rgba(0,0,0,.25); margin-bottom: 16px; }
+
+label { display:block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+input, select, button { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08); background: #0e1729; color: var(--text); }
+input:focus, select:focus { outline: 2px solid rgba(79,140,255,.35); }
+
+button { background: linear-gradient(180deg, #5a99ff, #3c7cf7); border: none; cursor: pointer; font-weight: 600; }
+button.secondary { background: #1a2743; }
+button.danger { background: linear-gradient(180deg, #ff7a7a, #ff5c5c); }
+button:disabled { opacity: .6; cursor: not-allowed; }
+
+.actions { display:flex; gap:10px; margin-top: 10px; }
+
+.table { width: 100%; border-collapse: collapse; }
+.table th, .table td { text-align: left; padding: 10px 8px; border-bottom: 1px solid rgba(255,255,255,0.06); font-size: 14px; }
+.table th { color: var(--muted); font-weight: 500; }
+
+.list { list-style: none; padding: 0; margin: 0; }
+.list li { padding: 8px 0; border-bottom: 1px dashed rgba(255,255,255,0.08); }
+
+.error { color: var(--danger); margin-top: 8px; }
+.hidden { display: none; }
+
+.toolbar { display:flex; align-items:center; justify-content: space-between; margin-bottom: 8px; }
