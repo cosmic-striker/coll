@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard - Device Monitoring</title>
   <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="assets/toast.css">
+  <link rel="stylesheet" href="assets/responsive.css">
 </head>
 <body>
   <div class="container">
@@ -17,70 +19,221 @@
       <a href="#" id="logout-btn">Logout</a>
     </nav>
 
-    <h1>Dashboard</h1>
-
-    <div class="toolbar">
-      <div></div>
-      <button id="refresh-dashboard" class="secondary">Refresh</button>
-    </div>
-
-    <div class="grid">
-      <div class="card">
-        <h3>Devices</h3>
-        <div id="devices-summary">Loading...</div>
-        <a href="device_details.html">Manage devices →</a>
-      </div>
-      <div class="card">
-        <h3>Cameras</h3>
-        <div id="cameras-summary">Loading...</div>
-        <a href="cameras.html">Manage cameras →</a>
-      </div>
-      <div class="card">
-        <h3>Alerts</h3>
-        <div id="alerts-summary">Loading...</div>
-        <a href="alerts.html">View alerts →</a>
+    <div class="page-header">
+      <h1>Dashboard</h1>
+      <div class="toolbar">
+        <button id="refresh-dashboard" class="btn btn-secondary">
+          <span id="refresh-icon">🔄</span> Refresh
+        </button>
       </div>
     </div>
 
+    <div class="grid grid-3">
+      <!-- Devices Summary Card -->
+      <div class="card stat-card" id="devices-card">
+        <div class="card-header">
+          <h3>Devices</h3>
+          <span class="icon">💻</span>
+        </div>
+        <div class="card-body">
+          <div id="devices-summary" class="skeleton-text">Loading...</div>
+          <div id="devices-stats" class="stats-breakdown"></div>
+        </div>
+        <div class="card-footer">
+          <a href="device_details.html" class="card-link">Manage devices →</a>
+        </div>
+      </div>
+
+      <!-- Cameras Summary Card -->
+      <div class="card stat-card" id="cameras-card">
+        <div class="card-header">
+          <h3>Cameras</h3>
+          <span class="icon">📹</span>
+        </div>
+        <div class="card-body">
+          <div id="cameras-summary" class="skeleton-text">Loading...</div>
+          <div id="cameras-stats" class="stats-breakdown"></div>
+        </div>
+        <div class="card-footer">
+          <a href="cameras.html" class="card-link">Manage cameras →</a>
+        </div>
+      </div>
+
+      <!-- Alerts Summary Card -->
+      <div class="card stat-card" id="alerts-card">
+        <div class="card-header">
+          <h3>Alerts</h3>
+          <span class="icon">🔔</span>
+        </div>
+        <div class="card-body">
+          <div id="alerts-summary" class="skeleton-text">Loading...</div>
+          <div id="alerts-stats" class="stats-breakdown"></div>
+        </div>
+        <div class="card-footer">
+          <a href="alerts.html" class="card-link">View alerts →</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Alerts Section -->
     <section class="card">
-      <h3>Recent Alerts</h3>
-      <ul id="recent-alerts" class="list"></ul>
+      <div class="card-header">
+        <h3>Recent Alerts</h3>
+        <span class="badge badge-info" id="recent-count">0</span>
+      </div>
+      <div class="card-body">
+        <div id="recent-alerts-container">
+          <ul id="recent-alerts" class="alerts-list"></ul>
+        </div>
+      </div>
     </section>
   </div>
 
   <script src="assets/app.js"></script>
+  <script src="assets/utils.js"></script>
   <script>
     let refreshInterval;
     
     async function loadDashboardData() {
+      const refreshBtn = document.getElementById('refresh-dashboard');
+      const refreshIcon = document.getElementById('refresh-icon');
+      
       try {
+        // Add loading state
+        refreshBtn.disabled = true;
+        refreshIcon.style.animation = 'spin 1s linear infinite';
+        
         const [dev, cam, alerts] = await Promise.all([
           ApiClient.devicesStatus(),
           ApiClient.camerasStatus(),
           ApiClient.alertsSummary()
         ]);
-        document.getElementById('devices-summary').textContent = `${dev.online} online / ${dev.offline} offline / ${dev.unknown} unknown (total ${dev.total})`;
-        document.getElementById('cameras-summary').textContent = `${cam.online} online / ${cam.offline} offline / ${cam.unknown} unknown (total ${cam.total})`;
-        document.getElementById('alerts-summary').textContent = `${alerts.unacknowledged} unacknowledged • ${alerts.critical} critical • ${alerts.high} high (total ${alerts.total})`;
-        const recent = alerts.recent || [];
-        const ul = document.getElementById('recent-alerts');
-        ul.innerHTML = '';
-        if (!recent.length) {
-          const li = document.createElement('li');
-          li.textContent = 'No recent alerts.';
-          ul.appendChild(li);
-        } else {
-          recent.forEach(a => {
-            const li = document.createElement('li');
-            li.textContent = `[${a.severity}] ${a.device_name || 'N/A'} - ${a.message}`;
-            ul.appendChild(li);
-          });
-        }
+        
+        // Update devices summary
+        updateDevicesSummary(dev);
+        
+        // Update cameras summary
+        updateCamerasSummary(cam);
+        
+        // Update alerts summary
+        updateAlertsSummary(alerts);
+        
+        // Update recent alerts
+        updateRecentAlerts(alerts.recent || []);
+        
+        // Remove skeleton classes
+        document.querySelectorAll('.skeleton-text').forEach(el => {
+          el.classList.remove('skeleton-text');
+        });
+        
       } catch (e) {
-        document.getElementById('devices-summary').textContent = 'Failed to load';
-        document.getElementById('cameras-summary').textContent = 'Failed to load';
-        document.getElementById('alerts-summary').textContent = 'Failed to load';
+        Toast.error('Failed to load dashboard data');
         console.error(e);
+        
+        document.getElementById('devices-summary').innerHTML = '<span class="error">Failed to load</span>';
+        document.getElementById('cameras-summary').innerHTML = '<span class="error">Failed to load</span>';
+        document.getElementById('alerts-summary').innerHTML = '<span class="error">Failed to load</span>';
+      } finally {
+        refreshBtn.disabled = false;
+        refreshIcon.style.animation = '';
+      }
+    }
+    
+    function updateDevicesSummary(dev) {
+      const summary = document.getElementById('devices-summary');
+      const stats = document.getElementById('devices-stats');
+      
+      summary.innerHTML = `<div class="stat-value">${dev.total}</div><div class="stat-label">Total Devices</div>`;
+      
+      stats.innerHTML = `
+        <div class="stat-item">
+          <span class="badge badge-success">${dev.online}</span>
+          <span class="stat-label-sm">Online</span>
+        </div>
+        <div class="stat-item">
+          <span class="badge badge-error">${dev.offline}</span>
+          <span class="stat-label-sm">Offline</span>
+        </div>
+        <div class="stat-item">
+          <span class="badge badge-warning">${dev.unknown}</span>
+          <span class="stat-label-sm">Unknown</span>
+        </div>
+      `;
+    }
+    
+    function updateCamerasSummary(cam) {
+      const summary = document.getElementById('cameras-summary');
+      const stats = document.getElementById('cameras-stats');
+      
+      summary.innerHTML = `<div class="stat-value">${cam.total}</div><div class="stat-label">Total Cameras</div>`;
+      
+      stats.innerHTML = `
+        <div class="stat-item">
+          <span class="badge badge-success">${cam.online}</span>
+          <span class="stat-label-sm">Online</span>
+        </div>
+        <div class="stat-item">
+          <span class="badge badge-error">${cam.offline}</span>
+          <span class="stat-label-sm">Offline</span>
+        </div>
+        <div class="stat-item">
+          <span class="badge badge-warning">${cam.unknown}</span>
+          <span class="stat-label-sm">Unknown</span>
+        </div>
+      `;
+    }
+    
+    function updateAlertsSummary(alerts) {
+      const summary = document.getElementById('alerts-summary');
+      const stats = document.getElementById('alerts-stats');
+      
+      summary.innerHTML = `<div class="stat-value">${alerts.total}</div><div class="stat-label">Total Alerts</div>`;
+      
+      stats.innerHTML = `
+        <div class="stat-item">
+          <span class="badge badge-info">${alerts.unacknowledged}</span>
+          <span class="stat-label-sm">Unack.</span>
+        </div>
+        <div class="stat-item">
+          <span class="badge badge-error">${alerts.critical}</span>
+          <span class="stat-label-sm">Critical</span>
+        </div>
+        <div class="stat-item">
+          <span class="badge badge-warning">${alerts.high}</span>
+          <span class="stat-label-sm">High</span>
+        </div>
+      `;
+    }
+    
+    function updateRecentAlerts(recent) {
+      const ul = document.getElementById('recent-alerts');
+      const countBadge = document.getElementById('recent-count');
+      
+      countBadge.textContent = recent.length;
+      ul.innerHTML = '';
+      
+      if (!recent.length) {
+        ul.innerHTML = '<li class="no-data">No recent alerts.</li>';
+      } else {
+        recent.forEach(a => {
+          const li = document.createElement('li');
+          li.className = 'alert-item';
+          
+          const severityBadge = Utils.getStatusBadge(a.severity, a.severity);
+          const deviceName = a.device_name || 'N/A';
+          const timestamp = a.timestamp ? Utils.formatDate(a.timestamp) : '';
+          
+          li.innerHTML = `
+            <div class="alert-header">
+              ${severityBadge}
+              <span class="alert-device">${deviceName}</span>
+              ${timestamp ? `<span class="alert-time">${timestamp}</span>` : ''}
+            </div>
+            <div class="alert-message">${a.message}</div>
+          `;
+          
+          ul.appendChild(li);
+        });
       }
     }
 
@@ -105,13 +258,21 @@
       document.getElementById('logout-btn').addEventListener('click', (e) => {
         e.preventDefault();
         ApiClient.logout();
-        window.location.href = 'index.html';
+        Toast.info('Logged out successfully');
+        setTimeout(() => {
+          window.location.href = 'index.html';
+        }, 500);
       });
 
-      document.getElementById('refresh-dashboard').addEventListener('click', loadDashboardData);
+      document.getElementById('refresh-dashboard').addEventListener('click', async () => {
+        await loadDashboardData();
+        Toast.success('Dashboard refreshed');
+      });
 
       // Load initial data
+      Loading.show('Loading dashboard...');
       await loadDashboardData();
+      Loading.hide();
       
       // Start auto-refresh
       startAutoRefresh();
@@ -126,5 +287,131 @@
       });
     });
   </script>
+  
+  <style>
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+    }
+    
+    .stat-card {
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    
+    .stat-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+    }
+    
+    .stat-card .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    
+    .stat-card .icon {
+      font-size: 2rem;
+    }
+    
+    .stat-value {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+    }
+    
+    .stat-label {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+    
+    .stats-breakdown {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+    }
+    
+    .stat-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.25rem;
+    }
+    
+    .stat-label-sm {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+    
+    .card-link {
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 500;
+      transition: color 0.2s ease;
+    }
+    
+    .card-link:hover {
+      color: var(--primary-dark);
+    }
+    
+    .alerts-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    
+    .alert-item {
+      padding: 1rem;
+      border-bottom: 1px solid var(--border);
+      transition: background-color 0.2s ease;
+    }
+    
+    .alert-item:last-child {
+      border-bottom: none;
+    }
+    
+    .alert-item:hover {
+      background-color: var(--background-alt);
+    }
+    
+    .alert-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.5rem;
+    }
+    
+    .alert-device {
+      font-weight: 600;
+      color: var(--text);
+    }
+    
+    .alert-time {
+      margin-left: auto;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+    
+    .alert-message {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+    
+    .no-data {
+      padding: 2rem;
+      text-align: center;
+      color: var(--text-secondary);
+    }
+  </style>
 </body>
 </html>

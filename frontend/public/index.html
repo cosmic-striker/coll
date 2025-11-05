@@ -3,42 +3,257 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Device Monitoring - Login</title>
+  <title>Login - Device Monitoring System</title>
   <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="assets/toast.css">
+  <link rel="stylesheet" href="assets/responsive.css">
+  <style>
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    
+    .login-container {
+      width: 100%;
+      max-width: 460px;
+      animation: slideUp 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(40px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .login-card {
+      background: var(--panel);
+      border-radius: var(--radius-xl);
+      padding: 48px 40px;
+      box-shadow: var(--shadow-xl);
+      border: 1px solid var(--glass-border);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .login-card::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle, var(--primary-glow) 0%, transparent 70%);
+      opacity: 0.1;
+      animation: pulse 4s ease-in-out infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 0.1; }
+      50% { transform: scale(1.1); opacity: 0.15; }
+    }
+    
+    .login-header {
+      text-align: center;
+      margin-bottom: 40px;
+      position: relative;
+    }
+    
+    .login-logo {
+      width: 72px;
+      height: 72px;
+      margin: 0 auto 20px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      border-radius: var(--radius-lg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      font-weight: 700;
+      color: white;
+      box-shadow: 0 8px 24px var(--primary-glow);
+      animation: float 3s ease-in-out infinite;
+    }
+    
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+    
+    .login-title {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, var(--text), var(--primary-light));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .login-subtitle {
+      color: var(--text-secondary);
+      font-size: 15px;
+      margin: 0;
+    }
+    
+    .login-form {
+      position: relative;
+    }
+    
+    .form-group {
+      margin-bottom: 24px;
+    }
+    
+    .form-group label {
+      display: block;
+      margin-bottom: 10px;
+      color: var(--text);
+      font-weight: 500;
+      font-size: 14px;
+    }
+    
+    .form-group input {
+      width: 100%;
+      padding: 14px 18px;
+      border-radius: var(--radius);
+      border: 2px solid var(--border);
+      background: rgba(255, 255, 255, 0.02);
+      color: var(--text);
+      font-size: 15px;
+      transition: all 0.3s ease;
+      font-family: inherit;
+    }
+    
+    .form-group input:hover {
+      border-color: var(--border-hover);
+    }
+    
+    .form-group input:focus {
+      outline: none;
+      border-color: var(--primary);
+      background: rgba(59, 130, 246, 0.05);
+      box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+    }
+    
+    #login-btn {
+      margin-top: 32px;
+      padding: 16px;
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+    }
+    
+    .default-credentials {
+      margin-top: 32px;
+      padding: 20px;
+      background: rgba(139, 92, 246, 0.08);
+      border-radius: var(--radius);
+      border-left: 3px solid var(--accent);
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+    
+    .default-credentials strong {
+      color: var(--text);
+      font-weight: 600;
+    }
+    
+    .login-footer {
+      margin-top: 32px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      padding-top: 24px;
+      border-top: 1px solid var(--divider);
+    }
+    
+    .error {
+      padding: 12px 16px;
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      border-radius: var(--radius);
+      color: var(--danger-light);
+      font-size: 14px;
+      margin-top: 16px;
+    }
+    
+    .loading {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
 </head>
 <body>
-  <div class="container">
-    <h1>Device Monitoring</h1>
-    <div id="login-card" class="card">
-      <h2>Login</h2>
-      <form id="login-form">
-        <label for="username">Username</label>
-        <input type="text" id="username" name="username" required>
-        <label for="password">Password</label>
-        <input type="password" id="password" name="password" required>
-        <button type="submit">Sign in</button>
-        <p id="login-error" class="error" hidden></p>
+  <div class="login-container">
+    <div class="login-card">
+      <div class="login-header">
+        <div class="login-logo">🖥️</div>
+        <h1 class="login-title">Device Monitoring</h1>
+        <p class="login-subtitle">Monitor your network devices and cameras in real-time</p>
+      </div>
+      
+      <form id="login-form" class="login-form">
+        <div class="form-group">
+          <label for="username">Username</label>
+          <input type="text" id="username" name="username" placeholder="Enter your username" required autofocus>
+        </div>
+        
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" placeholder="Enter your password" required>
+        </div>
+        
+        <button type="submit" id="login-btn">
+          <span id="login-btn-text">Sign In</span>
+          <span id="login-btn-loading" class="hidden">
+            <span class="loading"></span> Signing in...
+          </span>
+        </button>
+        
+        <p id="login-error" class="error hidden"></p>
+        
+        <div class="default-credentials">
+          <strong>🔐 Default Credentials</strong><br>
+          <strong>Admin:</strong> admin / Admin@123<br>
+          <strong>Operator:</strong> operator / Operator@123<br>
+          <strong>Viewer:</strong> viewer / Viewer@123
+        </div>
       </form>
-    </div>
-    <div id="app-shell" class="hidden">
-      <nav class="nav">
-        <a href="dashboard.html">Dashboard</a>
-        <a href="device_details.html">Devices</a>
-        <a href="cameras.html">Cameras</a>
-        <a href="alerts.html">Alerts</a>
-        <a href="settings.html">Settings</a>
-        <a href="#" id="logout-btn">Logout</a>
-      </nav>
-      <main id="content"></main>
+      
+      <div class="login-footer">
+        <p>&copy; 2025 Device Monitoring System. All rights reserved.</p>
+      </div>
     </div>
   </div>
+  
   <script src="assets/app.js"></script>
+  <script src="assets/utils.js"></script>
   <script>
     window.addEventListener('DOMContentLoaded', () => {
       const loginForm = document.getElementById('login-form');
       const loginError = document.getElementById('login-error');
-      const logoutBtn = document.getElementById('logout-btn');
+      const loginBtn = document.getElementById('login-btn');
+      const loginBtnText = document.getElementById('login-btn-text');
+      const loginBtnLoading = document.getElementById('login-btn-loading');
 
+      // Redirect if already authenticated
       if (ApiClient.isAuthenticated()) {
         window.location.href = 'dashboard.html';
         return;
@@ -46,22 +261,42 @@
 
       loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        loginError.hidden = true;
+        loginError.classList.add('hidden');
+        
+        // Disable form
+        loginBtn.disabled = true;
+        loginBtnText.classList.add('hidden');
+        loginBtnLoading.classList.remove('hidden');
+        
         try {
           const username = document.getElementById('username').value.trim();
           const password = document.getElementById('password').value;
+          
           await ApiClient.login(username, password);
-          window.location.href = 'dashboard.html';
+          
+          Toast.success('Login successful! Redirecting...');
+          
+          setTimeout(() => {
+            window.location.href = 'dashboard.html';
+          }, 500);
+          
         } catch (err) {
-          loginError.textContent = err.message || 'Login failed';
-          loginError.hidden = false;
+          loginError.textContent = err.message || 'Login failed. Please check your credentials.';
+          loginError.classList.remove('hidden');
+          Toast.error(err.message || 'Login failed');
+          
+          // Re-enable form
+          loginBtn.disabled = false;
+          loginBtnText.classList.remove('hidden');
+          loginBtnLoading.classList.add('hidden');
         }
       });
-
-      logoutBtn?.addEventListener('click', (e) => {
-        e.preventDefault();
-        ApiClient.logout();
-        window.location.href = 'index.html';
+      
+      // Add enter key support
+      document.getElementById('password').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          loginForm.requestSubmit();
+        }
       });
     });
   </script>
