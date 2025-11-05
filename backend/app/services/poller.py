@@ -1,5 +1,5 @@
-from celery import Celery
-from app import db, create_app
+from celery import shared_task
+from app import db
 from app.models import Device, Camera, Alert
 from datetime import datetime
 import subprocess
@@ -8,20 +8,11 @@ import requests
 from urllib.parse import urlparse
 import logging
 
-# Create Flask app context for Celery tasks
-app = create_app()
-celery = Celery('poller')
-celery.conf.update(app.config)
+# Use shared_task decorator instead of getting celery instance
+# This avoids circular import issues
 
-class ContextTask(celery.Task):
-    def __call__(self, *args, **kwargs):
-        with app.app_context():
-            return self.run(*args, **kwargs)
-
-celery.Task = ContextTask
-
-@celery.task
-def poll_all_devices():
+@shared_task(bind=True)
+def poll_all_devices(self):
     """Poll all devices for status updates"""
     try:
         devices = Device.query.all()
@@ -40,8 +31,8 @@ def poll_all_devices():
         logging.error(f"Error in poll_all_devices: {str(e)}")
         return {'error': str(e)}
 
-@celery.task
-def poll_device_task(device_id):
+@shared_task(bind=True)
+def poll_device_task(self, device_id):
     """Async task to poll a specific device"""
     return poll_device_sync(device_id)
 
@@ -101,8 +92,8 @@ def poll_device_sync(device_id):
         logging.error(f"Error polling device {device_id}: {str(e)}")
         return {'error': str(e), 'device_id': device_id}
 
-@celery.task
-def poll_all_cameras():
+@shared_task(bind=True)
+def poll_all_cameras(self):
     """Poll all cameras for status updates"""
     try:
         cameras = Camera.query.all()
@@ -121,8 +112,8 @@ def poll_all_cameras():
         logging.error(f"Error in poll_all_cameras: {str(e)}")
         return {'error': str(e)}
 
-@celery.task
-def test_camera_connection_task(camera_id):
+@shared_task(bind=True)
+def test_camera_connection_task(self, camera_id):
     """Async task to test camera connection"""
     return test_camera_sync(camera_id)
 
@@ -221,18 +212,5 @@ def test_rtsp_stream(rtsp_url, timeout=10):
         logging.warning(f"RTSP test failed for {rtsp_url}: {str(e)}")
         return False
 
-# Periodic task setup
-from celery.schedules import crontab
-
-celery.conf.beat_schedule = {
-    'poll-all-devices': {
-        'task': 'app.services.poller.poll_all_devices',
-        'schedule': crontab(minute='*/5'),  # Every 5 minutes
-    },
-    'poll-all-cameras': {
-        'task': 'app.services.poller.poll_all_cameras',
-        'schedule': crontab(minute='*/10'),  # Every 10 minutes
-    },
-}
-
-celery.conf.timezone = 'UTC'
+# Periodic task setup needs to be configured through Celery beat
+# Configuration moved to celery_worker.py or app config

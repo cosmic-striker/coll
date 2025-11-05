@@ -12,7 +12,8 @@ Usage:
 
 import os
 import logging
-from app import create_app, make_celery
+from app import create_app
+from celery.schedules import crontab
 
 # Set up logging
 logging.basicConfig(
@@ -21,16 +22,34 @@ logging.basicConfig(
 )
 
 # Create Flask app with proper configuration
-# Do not treat FLASK_ENV as a config object path; use default Config
-app = create_app()
+app = create_app('app.config.Config')
 
-# Initialize Celery with Flask app context
-celery = make_celery(app)
+# Get the Celery instance from the app
+from app import celery
 
-# Import tasks to ensure they are registered
+# Configure Celery beat schedule for periodic tasks
+celery.conf.beat_schedule = {
+    'poll-all-devices': {
+        'task': 'app.services.poller.poll_all_devices',
+        'schedule': crontab(minute='*/5'),  # Every 5 minutes
+    },
+    'poll-all-cameras': {
+        'task': 'app.services.poller.poll_all_cameras',
+        'schedule': crontab(minute='*/10'),  # Every 10 minutes
+    },
+    'send-daily-summary': {
+        'task': 'app.services.alerting.send_daily_summary',
+        'schedule': crontab(hour=0, minute=0),  # Daily at midnight
+    },
+}
+
+celery.conf.timezone = 'UTC'
+
+# Import tasks to ensure they are registered with Celery
 with app.app_context():
     import app.services.poller
     import app.services.alerting
+    logging.info("Celery tasks imported successfully")
 
 if __name__ == '__main__':
     # This allows running the worker directly with python

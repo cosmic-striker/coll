@@ -16,7 +16,7 @@ import logging
 from app import create_app, db
 
 # Create Flask app with appropriate configuration
-config_name = os.environ.get('FLASK_ENV', 'app.config.Config')
+config_name = 'app.config.Config' if os.environ.get('FLASK_ENV') != 'testing' else 'app.config.TestingConfig'
 app = create_app(config_name)
 
 def init_database():

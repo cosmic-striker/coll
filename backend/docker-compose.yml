@@ -1,32 +1,68 @@
 version: '3.8'
 
 services:
+  # Flask Backend API
   backend:
     build: .
+    container_name: device-monitoring-backend
+    restart: unless-stopped
     ports:
       - "5000:5000"
     environment:
-      - FLASK_ENV=production
-      - SECRET_KEY=your-secret
-      - JWT_SECRET_KEY=your-jwt-secret
+      - FLASK_ENV=${FLASK_ENV:-production}
+      - FLASK_DEBUG=${FLASK_DEBUG:-false}
+      - SECRET_KEY=${SECRET_KEY:-please-change-this-secret-key}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-please-change-this-jwt-secret}
+      - DATABASE_URL=${DATABASE_URL:-sqlite:///devices.db}
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - PORT=5000
+    volumes:
+      - ./instance:/app/instance
+      - ./logs:/app/logs
     depends_on:
       - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
+  # Redis for Celery broker and caching
   redis:
-    image: redis:7
+    image: redis:7-alpine
+    container_name: device-monitoring-redis
+    restart: unless-stopped
     ports:
       - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
+  # Celery Worker for background tasks
   celery_worker:
     build: .
-    command: celery -A app.celery worker --loglevel=info
+    container_name: device-monitoring-celery
+    restart: unless-stopped
+    command: celery -A celery_worker.celery worker --loglevel=info
     environment:
-      - FLASK_ENV=production
-      - SECRET_KEY=your-secret
-      - JWT_SECRET_KEY=your-jwt-secret
+      - FLASK_ENV=${FLASK_ENV:-production}
+      - SECRET_KEY=${SECRET_KEY:-please-change-this-secret-key}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-please-change-this-jwt-secret}
+      - DATABASE_URL=${DATABASE_URL:-sqlite:///devices.db}
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    volumes:
+      - ./instance:/app/instance
+      - ./logs:/app/logs
     depends_on:
       - redis
+      - backend
+
+volumes:
+  redis_data:

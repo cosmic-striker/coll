@@ -183,11 +183,35 @@ def test_camera_connection(camera_id):
                 'camera_id': camera_id
             })
         except Exception:
-            # Celery/broker unavailable — run synchronous test and return result
-            result = test_camera_sync(camera_id)
-            if isinstance(result, dict) and result.get('error'):
-                return jsonify({'msg': 'Failed to test camera connection', 'error': result.get('error')}), 500
-            return jsonify({'msg': 'Camera connection test completed', 'result': result})
+            # Celery/broker unavailable — run the test in a background thread
+            # so the HTTP request returns immediately instead of blocking.
+            import threading
+            from flask import current_app
+
+            def _bg_test(cam_id):
+                try:
+                    app = current_app._get_current_object()
+                    with app.app_context():
+                        res = test_camera_sync(cam_id)
+                        # Optionally log or store the result somewhere
+                        try:
+                            import logging
+                            logging.getLogger('app').info(f"Background camera test result for {cam_id}: {res}")
+                        except Exception:
+                            pass
+                except Exception as _e:
+                    try:
+                        import logging
+                        logging.getLogger('app').exception(f"Background camera test failed for {cam_id}: {_e}")
+                    except Exception:
+                        pass
+
+            t = threading.Thread(target=_bg_test, args=(camera_id,), daemon=True)
+            t.start()
+            return jsonify({
+                'msg': 'Camera connection test initiated (background)',
+                'camera_id': camera_id
+            }), 202
     except Exception as e:
         return jsonify({'msg': 'Failed to test camera connection', 'error': str(e)}), 500
 

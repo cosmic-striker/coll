@@ -25,4 +25,4 @@ ENV PYTHONPATH=/app
 EXPOSE 5000
 
 # Run the application with gunicorn
-CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5000", "--timeout", "120", "--keepalive", "2", "run:app"]
+CMD ["python", "run.py"]

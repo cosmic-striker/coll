@@ -156,16 +156,46 @@ def poll_device(device_id):
         device = Device.query.get_or_404(device_id)
         
         # Import here to avoid circular imports
-        from app.services.poller import poll_device_task
+        from app.services.poller import poll_device_task, poll_device_sync
         
-        # Trigger async polling task
-        task = poll_device_task.delay(device_id)
-        
-        return jsonify({
-            'msg': 'Polling initiated',
-            'task_id': task.id,
-            'device_id': device_id
-        })
+        # Try to queue async polling task; if Celery/broker isn't available, fall back to background thread
+        try:
+            task = poll_device_task.delay(device_id)
+            return jsonify({
+                'msg': 'Polling initiated',
+                'task_id': task.id,
+                'device_id': device_id
+            })
+        except Exception:
+            # Celery/broker unavailable — run the poll in a background thread
+            # so the HTTP request returns immediately instead of blocking.
+            import threading
+            from flask import current_app
+            
+            def _bg_poll(dev_id):
+                try:
+                    app = current_app._get_current_object()
+                    with app.app_context():
+                        res = poll_device_sync(dev_id)
+                        # Optionally log the result
+                        try:
+                            import logging
+                            logging.getLogger('app').info(f"Background device poll result for {dev_id}: {res}")
+                        except Exception:
+                            pass
+                except Exception as _e:
+                    try:
+                        import logging
+                        logging.getLogger('app').exception(f"Background device poll failed for {dev_id}: {_e}")
+                    except Exception:
+                        pass
+            
+            t = threading.Thread(target=_bg_poll, args=(device_id,), daemon=True)
+            t.start()
+            return jsonify({
+                'msg': 'Polling initiated (background)',
+                'device_id': device_id
+            }), 202
     except Exception as e:
         return jsonify({'msg': 'Failed to initiate polling', 'error': str(e)}), 500
 

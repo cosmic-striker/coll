@@ -1,5 +1,5 @@
-from celery import Celery
-from app import db, create_app
+from celery import shared_task
+from app import db
 from app.models import Alert, Device
 import smtplib
 import requests
@@ -7,21 +7,10 @@ import logging
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
+import os
 
-# Create Flask app context for Celery tasks
-app = create_app()
-celery = Celery('alerting')
-celery.conf.update(app.config)
-
-class ContextTask(celery.Task):
-    def __call__(self, *args, **kwargs):
-        with app.app_context():
-            return self.run(*args, **kwargs)
-
-celery.Task = ContextTask
-
-@celery.task
-def send_alert_notification(alert_id):
+@shared_task(bind=True)
+def send_alert_notification(self, alert_id):
     """Send alert notification via configured channels"""
     try:
         alert = Alert.query.get(alert_id)
@@ -68,12 +57,12 @@ def send_email_alert(alert_data):
     """Send email alert notification"""
     try:
         # Email configuration from environment
-        smtp_server = app.config.get('SMTP_SERVER', 'smtp.gmail.com')
-        smtp_port = app.config.get('SMTP_PORT', 587)
-        smtp_username = app.config.get('SMTP_USERNAME')
-        smtp_password = app.config.get('SMTP_PASSWORD')
-        email_from = app.config.get('ALERT_EMAIL_FROM', 'alerts@example.com')
-        email_to = app.config.get('ALERT_EMAIL_TO', 'admin@example.com')
+        smtp_server = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
+        smtp_port = int(os.environ.get('SMTP_PORT', 587))
+        smtp_username = os.environ.get('SMTP_USERNAME')
+        smtp_password = os.environ.get('SMTP_PASSWORD')
+        email_from = os.environ.get('ALERT_EMAIL_FROM', 'alerts@example.com')
+        email_to = os.environ.get('ALERT_EMAIL_TO', 'admin@example.com')
         
         if not all([smtp_username, smtp_password]):
             return {'status': 'skipped', 'reason': 'SMTP credentials not configured'}
@@ -117,7 +106,7 @@ Please check the monitoring dashboard for more details.
 def send_slack_alert(alert_data):
     """Send Slack alert notification"""
     try:
-        slack_webhook_url = app.config.get('SLACK_WEBHOOK_URL')
+        slack_webhook_url = os.environ.get('SLACK_WEBHOOK_URL')
         
         if not slack_webhook_url:
             return {'status': 'skipped', 'reason': 'Slack webhook URL not configured'}
@@ -189,8 +178,8 @@ def send_slack_alert(alert_data):
         logging.error(f"Failed to send Slack alert: {str(e)}")
         return {'status': 'failed', 'error': str(e)}
 
-@celery.task
-def send_daily_summary():
+@shared_task(bind=True)
+def send_daily_summary(self):
     """Send daily summary of alerts and device status"""
     try:
         from datetime import datetime, timedelta
@@ -242,12 +231,12 @@ def send_daily_summary():
 def send_email_summary(summary_data):
     """Send daily summary via email"""
     try:
-        smtp_server = app.config.get('SMTP_SERVER', 'smtp.gmail.com')
-        smtp_port = app.config.get('SMTP_PORT', 587)
-        smtp_username = app.config.get('SMTP_USERNAME')
-        smtp_password = app.config.get('SMTP_PASSWORD')
-        email_from = app.config.get('ALERT_EMAIL_FROM', 'alerts@example.com')
-        email_to = app.config.get('ALERT_EMAIL_TO', 'admin@example.com')
+        smtp_server = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
+        smtp_port = int(os.environ.get('SMTP_PORT', 587))
+        smtp_username = os.environ.get('SMTP_USERNAME')
+        smtp_password = os.environ.get('SMTP_PASSWORD')
+        email_from = os.environ.get('ALERT_EMAIL_FROM', 'alerts@example.com')
+        email_to = os.environ.get('ALERT_EMAIL_TO', 'admin@example.com')
         
         if not all([smtp_username, smtp_password]):
             return {'status': 'skipped', 'reason': 'SMTP credentials not configured'}
@@ -294,7 +283,7 @@ ALERTS SUMMARY:
 def send_slack_summary(summary_data):
     """Send daily summary to Slack"""
     try:
-        slack_webhook_url = app.config.get('SLACK_WEBHOOK_URL')
+        slack_webhook_url = os.environ.get('SLACK_WEBHOOK_URL')
         
         if not slack_webhook_url:
             return {'status': 'skipped', 'reason': 'Slack webhook URL not configured'}

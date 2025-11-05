@@ -1,11 +1,24 @@
 from flask import Blueprint, request, jsonify
 from app.models import User
-from app import db
+from app import db, limiter
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, create_refresh_token, get_jwt
 from datetime import timedelta
 from functools import wraps
+import re
 
 auth_bp = Blueprint('auth', __name__)
+
+def validate_password(password):
+    """Validate password complexity"""
+    if len(password) < 8:
+        return False, "Password must be at least 8 characters long"
+    if not re.search(r'[A-Z]', password):
+        return False, "Password must contain at least one uppercase letter"
+    if not re.search(r'[a-z]', password):
+        return False, "Password must contain at least one lowercase letter"
+    if not re.search(r'\d', password):
+        return False, "Password must contain at least one digit"
+    return True, "Password is valid"
 
 def admin_required(f):
     @wraps(f)
@@ -30,6 +43,7 @@ def operator_required(f):
     return decorated_function
 
 @auth_bp.route('/login', methods=['POST'])
+@limiter.limit("5 per minute")
 def login():
     try:
         data = request.get_json()
@@ -129,6 +143,12 @@ def create_user():
         role = data.get('role', 'viewer')
         if not all([username, email, password]):
             return jsonify({'msg': 'Username, email and password required'}), 400
+        
+        # Validate password complexity
+        is_valid, msg = validate_password(password)
+        if not is_valid:
+            return jsonify({'msg': msg}), 400
+        
         if role not in ['admin', 'operator', 'viewer']:
             return jsonify({'msg': 'Invalid role'}), 400
         # Check if user exists
@@ -163,8 +183,8 @@ def update_user(user_id):
             return jsonify({'msg': 'No input data provided'}), 400
         username = data.get('username')
         email = data.get('email')
-        role = data.get('role')
         password = data.get('password')
+        role = data.get('role')
         # Check for username/email uniqueness if changed
         if username and username != user.username:
             if User.query.filter_by(username=username).first():
@@ -179,6 +199,10 @@ def update_user(user_id):
                 return jsonify({'msg': 'Invalid role'}), 400
             user.role = role
         if password:
+            # Validate password complexity
+            is_valid, msg = validate_password(password)
+            if not is_valid:
+                return jsonify({'msg': msg}), 400
             user.set_password(password)
         db.session.commit()
         return jsonify({
