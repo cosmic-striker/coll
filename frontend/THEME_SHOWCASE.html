@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Theme Showcase - Device Monitoring</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="assets/toast.css">
+  <link rel="stylesheet" href="assets/responsive.css">
+  <style>
+    .theme-showcase {
+      padding: 40px 20px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    
+    .showcase-header {
+      text-align: center;
+      margin-bottom: 60px;
+    }
+    
+    .showcase-header h1 {
+      font-size: 48px;
+      font-weight: 800;
+      margin-bottom: 16px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .showcase-header p {
+      font-size: 18px;
+      color: var(--text-secondary);
+      margin-bottom: 32px;
+    }
+    
+    .theme-preview-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 30px;
+      margin-bottom: 60px;
+    }
+    
+    .theme-preview-card {
+      background: var(--panel);
+      border: 2px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      box-shadow: var(--shadow-lg);
+      transition: all 0.3s ease;
+    }
+    
+    .theme-preview-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-xl);
+      border-color: var(--primary);
+    }
+    
+    .theme-preview-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    
+    .theme-preview-icon {
+      font-size: 32px;
+    }
+    
+    .theme-preview-info h3 {
+      font-size: 20px;
+      margin-bottom: 4px;
+    }
+    
+    .theme-preview-info p {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+    
+    .color-swatches {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    
+    .color-swatch {
+      aspect-ratio: 1;
+      border-radius: var(--radius);
+      border: 2px solid var(--border);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .color-swatch::after {
+      content: attr(data-label);
+      position: absolute;
+      bottom: 4px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 9px;
+      font-weight: 700;
+      color: white;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+      white-space: nowrap;
+    }
+    
+    .demo-components {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    
+    .demo-btn {
+      padding: 10px 16px;
+      border-radius: var(--radius);
+      font-weight: 600;
+      font-size: 14px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .demo-btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+    
+    .demo-btn-primary:hover {
+      background: var(--primary-light);
+      transform: scale(1.02);
+    }
+    
+    .demo-alert {
+      padding: 12px 16px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      border-left: 3px solid;
+    }
+    
+    .demo-alert-success {
+      background: rgba(16, 185, 129, 0.1);
+      border-color: var(--success);
+      color: var(--success-light);
+    }
+    
+    .demo-alert-warning {
+      background: rgba(245, 158, 11, 0.1);
+      border-color: var(--warning);
+      color: var(--warning-light);
+    }
+    
+    .features-section {
+      background: var(--panel);
+      border-radius: var(--radius-lg);
+      padding: 40px;
+      border: 2px solid var(--border);
+      margin-bottom: 60px;
+    }
+    
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+      margin-top: 30px;
+    }
+    
+    .feature-item {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+    }
+    
+    .feature-icon {
+      font-size: 32px;
+      flex-shrink: 0;
+    }
+    
+    .feature-content h4 {
+      font-size: 16px;
+      margin-bottom: 8px;
+    }
+    
+    .feature-content p {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+    
+    .shortcuts-section {
+      background: var(--panel);
+      border-radius: var(--radius-lg);
+      padding: 32px;
+      border: 2px solid var(--border);
+    }
+    
+    .shortcuts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+      margin-top: 24px;
+    }
+    
+    .shortcut-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px;
+      background: var(--panel-light);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+    }
+    
+    .shortcut-label {
+      font-size: 14px;
+      color: var(--text);
+    }
+    
+    .shortcut-keys {
+      display: flex;
+      gap: 4px;
+    }
+    
+    .key {
+      background: var(--bg);
+      border: 2px solid var(--border);
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      font-family: 'Courier New', monospace;
+      color: var(--primary);
+    }
+    
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 16px;
+      margin-bottom: 20px;
+      transition: all 0.2s ease;
+    }
+    
+    .back-link:hover {
+      gap: 12px;
+      color: var(--primary-light);
+    }
+  </style>
+</head>
+<body>
+  <div class="theme-showcase">
+    <a href="dashboard.html" class="back-link">← Back to Dashboard</a>
+    
+    <div class="showcase-header">
+      <h1>🎨 Theme Showcase</h1>
+      <p>Explore 6 beautiful color themes, each with Dark, Light, and Grey modes</p>
+    </div>
+    
+    <section class="theme-preview-grid">
+      <!-- Blue Ocean Theme -->
+      <div class="theme-preview-card">
+        <div class="theme-preview-header">
+          <span class="theme-preview-icon">🌊</span>
+          <div class="theme-preview-info">
+            <h3>Blue Ocean</h3>
+            <p>Classic and professional</p>
+          </div>
+        </div>
+        <div class="color-swatches">
+          <div class="color-swatch" style="background: #3b82f6;" data-label="Primary"></div>
+          <div class="color-swatch" style="background: #60a5fa;" data-label="Light"></div>
+          <div class="color-swatch" style="background: #8b5cf6;" data-label="Accent"></div>
+          <div class="color-swatch" style="background: #1a1f2e;" data-label="Panel"></div>
+        </div>
+        <div class="demo-components">
+          <button class="demo-btn demo-btn-primary">Primary Button</button>
+          <div class="demo-alert demo-alert-success">✓ Success message</div>
+        </div>
+      </div>
+      
+      <!-- Purple Night Theme -->
+      <div class="theme-preview-card">
+        <div class="theme-preview-header">
+          <span class="theme-preview-icon">🌙</span>
+          <div class="theme-preview-info">
+            <h3>Purple Night</h3>
+            <p>Elegant and mysterious</p>
+          </div>
+        </div>
+        <div class="color-swatches">
+          <div class="color-swatch" style="background: #a855f7;" data-label="Primary"></div>
+          <div class="color-swatch" style="background: #c084fc;" data-label="Light"></div>
+          <div class="color-swatch" style="background: #ec4899;" data-label="Accent"></div>
+          <div class="color-swatch" style="background: #2d1b4e;" data-label="Panel"></div>
+        </div>
+        <div class="demo-components">
+          <button class="demo-btn demo-btn-primary">Primary Button</button>
+          <div class="demo-alert demo-alert-warning">⚠ Warning message</div>
+        </div>
+      </div>
+      
+      <!-- Forest Green Theme -->
+      <div class="theme-preview-card">
+        <div class="theme-preview-header">
+          <span class="theme-preview-icon">🌲</span>
+          <div class="theme-preview-info">
+            <h3>Forest Green</h3>
+            <p>Natural and calming</p>
+          </div>
+        </div>
+        <div class="color-swatches">
+          <div class="color-swatch" style="background: #10b981;" data-label="Primary"></div>
+          <div class="color-swatch" style="background: #34d399;" data-label="Light"></div>
+          <div class="color-swatch" style="background: #06b6d4;" data-label="Accent"></div>
+          <div class="color-swatch" style="background: #14291f;" data-label="Panel"></div>
+        </div>
+        <div class="demo-components">
+          <button class="demo-btn demo-btn-primary">Primary Button</button>
+          <div class="demo-alert demo-alert-success">✓ Success message</div>
+        </div>
+      </div>
+      
+      <!-- Sunset Orange Theme -->
+      <div class="theme-preview-card">
+        <div class="theme-preview-header">
+          <span class="theme-preview-icon">🌅</span>
+          <div class="theme-preview-info">
+            <h3>Sunset Orange</h3>
+            <p>Warm and energetic</p>
+          </div>
+        </div>
+        <div class="color-swatches">
+          <div class="color-swatch" style="background: #f97316;" data-label="Primary"></div>
+          <div class="color-swatch" style="background: #fb923c;" data-label="Light"></div>
+          <div class="color-swatch" style="background: #eab308;" data-label="Accent"></div>
+          <div class="color-swatch" style="background: #2e1f14;" data-label="Panel"></div>
+        </div>
+        <div class="demo-components">
+          <button class="demo-btn demo-btn-primary">Primary Button</button>
+          <div class="demo-alert demo-alert-warning">⚠ Warning message</div>
+        </div>
+      </div>
+      
+      <!-- Ruby Red Theme -->
+      <div class="theme-preview-card">
+        <div class="theme-preview-header">
+          <span class="theme-preview-icon">💎</span>
+          <div class="theme-preview-info">
+            <h3>Ruby Red</h3>
+            <p>Bold and passionate</p>
+          </div>
+        </div>
+        <div class="color-swatches">
+          <div class="color-swatch" style="background: #ef4444;" data-label="Primary"></div>
+          <div class="color-swatch" style="background: #f87171;" data-label="Light"></div>
+          <div class="color-swatch" style="background: #ec4899;" data-label="Accent"></div>
+          <div class="color-swatch" style="background: #2e141e;" data-label="Panel"></div>
+        </div>
+        <div class="demo-components">
+          <button class="demo-btn demo-btn-primary">Primary Button</button>
+          <div class="demo-alert demo-alert-success">✓ Success message</div>
+        </div>
+      </div>
+      
+      <!-- Cyan Wave Theme -->
+      <div class="theme-preview-card">
+        <div class="theme-preview-header">
+          <span class="theme-preview-icon">🌀</span>
+          <div class="theme-preview-info">
+            <h3>Cyan Wave</h3>
+            <p>Fresh and modern</p>
+          </div>
+        </div>
+        <div class="color-swatches">
+          <div class="color-swatch" style="background: #06b6d4;" data-label="Primary"></div>
+          <div class="color-swatch" style="background: #22d3ee;" data-label="Light"></div>
+          <div class="color-swatch" style="background: #0ea5e9;" data-label="Accent"></div>
+          <div class="color-swatch" style="background: #14282e;" data-label="Panel"></div>
+        </div>
+        <div class="demo-components">
+          <button class="demo-btn demo-btn-primary">Primary Button</button>
+          <div class="demo-alert demo-alert-success">✓ Success message</div>
+        </div>
+      </div>
+    </section>
+    
+    <section class="features-section">
+      <h2>✨ Theme Features</h2>
+      <div class="features-grid">
+        <div class="feature-item">
+          <span class="feature-icon">🎨</span>
+          <div class="feature-content">
+            <h4>6 Color Themes</h4>
+            <p>Choose from Blue, Purple, Green, Orange, Red, or Cyan color palettes</p>
+          </div>
+        </div>
+        
+        <div class="feature-item">
+          <span class="feature-icon">🌓</span>
+          <div class="feature-content">
+            <h4>3 Display Modes</h4>
+            <p>Switch between Dark, Light, and Grey modes for each theme</p>
+          </div>
+        </div>
+        
+        <div class="feature-item">
+          <span class="feature-icon">💾</span>
+          <div class="feature-content">
+            <h4>Auto-Save Preferences</h4>
+            <p>Your theme choice is saved automatically and persists across sessions</p>
+          </div>
+        </div>
+        
+        <div class="feature-item">
+          <span class="feature-icon">⚡</span>
+          <div class="feature-content">
+            <h4>Keyboard Shortcuts</h4>
+            <p>Quickly switch themes using convenient keyboard combinations</p>
+          </div>
+        </div>
+        
+        <div class="feature-item">
+          <span class="feature-icon">♿</span>
+          <div class="feature-content">
+            <h4>Accessible Design</h4>
+            <p>All themes meet WCAG AA accessibility standards for contrast</p>
+          </div>
+        </div>
+        
+        <div class="feature-item">
+          <span class="feature-icon">🔔</span>
+          <div class="feature-content">
+            <h4>Visual Feedback</h4>
+            <p>Toast notifications confirm every theme change instantly</p>
+          </div>
+        </div>
+      </div>
+    </section>
+    
+    <section class="shortcuts-section">
+      <h2>⌨️ Keyboard Shortcuts</h2>
+      <div class="shortcuts-grid">
+        <div class="shortcut-item">
+          <span class="shortcut-label">Cycle Display Modes</span>
+          <div class="shortcut-keys">
+            <span class="key">Ctrl</span>
+            <span class="key">Shift</span>
+            <span class="key">T</span>
+          </div>
+        </div>
+        
+        <div class="shortcut-item">
+          <span class="shortcut-label">Cycle Color Themes</span>
+          <div class="shortcut-keys">
+            <span class="key">Ctrl</span>
+            <span class="key">Shift</span>
+            <span class="key">C</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+  
+  <script src="assets/theme.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>

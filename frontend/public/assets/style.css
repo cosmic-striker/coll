@@ -60,6 +60,19 @@
   --radius-xl: 20px;
 }
 
+/* Theme-specific overrides for better visibility */
+body.mode-light {
+  color: var(--text);
+}
+
+body.mode-dark {
+  color: var(--text);
+}
+
+body.mode-grey {
+  color: var(--text);
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -127,14 +140,14 @@ body {
 .nav {
   display: flex;
   gap: 6px;
-  background: var(--glass-bg);
+  background: var(--panel);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-radius: var(--radius-lg);
   padding: 8px;
   margin-bottom: 32px;
   box-shadow: var(--shadow);
-  border: 1px solid var(--glass-border);
+  border: 1px solid var(--border);
   flex-wrap: wrap;
   position: sticky;
   top: 20px;
@@ -142,7 +155,7 @@ body {
 }
 
 .nav a {
-  color: var(--text-secondary);
+  color: var(--text) !important;
   text-decoration: none;
   padding: 12px 20px;
   border-radius: var(--radius);
@@ -151,6 +164,7 @@ body {
   font-size: 14px;
   position: relative;
   overflow: hidden;
+  opacity: 0.8;
 }
 
 .nav a::before {
@@ -168,14 +182,16 @@ body {
 
 .nav a:hover {
   background: var(--panel-hover);
-  color: var(--text);
+  color: var(--text) !important;
+  opacity: 1;
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 12px var(--primary-glow);
 }
 
 .nav a.active {
   background: linear-gradient(135deg, var(--primary), var(--accent));
-  color: white;
+  color: white !important;
+  opacity: 1;
   box-shadow: 0 4px 16px var(--primary-glow);
   font-weight: 600;
 }
