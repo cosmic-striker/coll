@@ -544,3 +544,8 @@ with app.app_context(). See the documentation for more information.
 2025-11-05 08:01:23,061 INFO: Backend application startup [in F:\sen5\coll\coll\backend\app\__init__.py:169]
 2025-11-05 09:03:08,201 INFO: Backend application startup [in F:\sen5\coll\coll\backend\app\__init__.py:169]
 2025-11-05 09:07:29,870 INFO: Backend application startup [in F:\sen5\coll\coll\backend\app\__init__.py:169]
+2025-11-05 17:24:52,722 INFO: Backend application startup [in F:\sen5\coll\coll\backend\app\__init__.py:169]
+2025-11-05 18:06:44,299 INFO: Backend application startup [in F:\sen5\coll\coll\backend\app\__init__.py:169]
+2025-11-06 16:19:55,324 INFO: Backend application startup [in F:\sen5\coll\coll\backend\app\__init__.py:169]
+2025-11-06 16:22:35,412 INFO: Backend application startup [in F:\sen5\coll\coll\backend\app\__init__.py:169]
+2025-11-06 19:44:59,863 INFO: Backend application startup [in F:\sen5\coll\coll\backend\app\__init__.py:169]
