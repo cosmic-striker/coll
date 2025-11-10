@@ -12,8 +12,10 @@
       <a href="dashboard.html">Dashboard</a>
       <a href="device_details.html">Devices</a>
       <a href="cameras.html" class="active">Cameras</a>
+      <a href="live_feeds.html">Live Feeds</a>
       <a href="alerts.html">Alerts</a>
       <a href="settings.html">Settings</a>
+      <a href="network_scan.html">🔍 Scan Network</a>
       <a href="#" id="logout-btn">Logout</a>
     </nav>
 
@@ -103,6 +105,7 @@
 
   <script src="assets/theme.js"></script>
   <script src="assets/app.js"></script>
+  <script src="assets/utils.js"></script>
   <script>
     function c_fillForm(c) {
       document.getElementById('camera-id').value = c.id || '';
@@ -195,7 +198,14 @@
     window.addEventListener('DOMContentLoaded', () => {
       if (!ApiClient.isAuthenticated()) { window.location.href = 'index.html'; return; }
 
-      document.getElementById('logout-btn').addEventListener('click', (e) => { e.preventDefault(); ApiClient.logout(); window.location.href = 'index.html'; });
+      document.getElementById('logout-btn').addEventListener('click', (e) => { 
+        e.preventDefault(); 
+        ApiClient.logout();
+        Toast.info('Logged out successfully');
+        setTimeout(() => {
+          window.location.href = 'index.html';
+        }, 500);
+      });
       document.getElementById('c_refresh').addEventListener('click', c_load);
       document.getElementById('c_reset').addEventListener('click', c_resetForm);
       

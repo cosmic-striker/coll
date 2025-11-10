@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, Response
 from app.models import Camera, Alert
 from app import db
 from flask_jwt_extended import jwt_required
@@ -148,22 +148,98 @@ def delete_camera(camera_id):
         db.session.rollback()
         return jsonify({'msg': 'Failed to delete camera', 'error': str(e)}), 500
 
-@cameras_bp.route('/<int:camera_id>/stream', methods=['GET'])
-@jwt_required()
-def get_camera_stream(camera_id):
+@cameras_bp.route('/<int:camera_id>/stream/start', methods=['POST'])
+@operator_required
+def start_camera_stream(camera_id):
+    """Start RTSP streaming for a camera"""
     try:
         camera = Camera.query.get_or_404(camera_id)
         
-        # Return stream information for frontend consumption
-        return jsonify({
-            'id': camera.id,
-            'name': camera.name,
-            'rtsp_url': camera.rtsp_url,
-            'status': camera.status,
-            'location': camera.location
-        })
+        from app.camera_stream import start_camera_stream
+        
+        success = start_camera_stream(
+            camera_id=camera.id,
+            rtsp_url=camera.rtsp_url,
+            username=camera.username,
+            password=camera.password
+        )
+        
+        if success:
+            return jsonify({'msg': 'Camera stream started successfully'})
+        else:
+            return jsonify({'msg': 'Failed to start camera stream'}), 500
+            
     except Exception as e:
-        return jsonify({'msg': 'Failed to get camera stream info', 'error': str(e)}), 500
+        return jsonify({'msg': 'Failed to start camera stream', 'error': str(e)}), 500
+
+@cameras_bp.route('/<int:camera_id>/stream/stop', methods=['POST'])
+@operator_required
+def stop_camera_stream(camera_id):
+    """Stop RTSP streaming for a camera"""
+    try:
+        from app.camera_stream import stop_camera_stream
+        stop_camera_stream(camera_id)
+        return jsonify({'msg': 'Camera stream stopped successfully'})
+            
+    except Exception as e:
+        return jsonify({'msg': 'Failed to stop camera stream', 'error': str(e)}), 500
+
+@cameras_bp.route('/<int:camera_id>/stream/live')
+@jwt_required()
+def get_camera_live_stream(camera_id):
+    """Get live MJPEG stream for a camera"""
+    try:
+        from app.camera_stream import generate_mjpeg_stream, get_camera_stream_info
+        
+        # Check if stream is active
+        stream_info = get_camera_stream_info(camera_id)
+        if not stream_info or stream_info.get('status') != 'streaming':
+            return jsonify({'msg': 'Camera stream is not active'}), 404
+        
+        # Return MJPEG stream
+        from app.camera_stream import generate_mjpeg_stream
+        return Response(
+            generate_mjpeg_stream(camera_id),
+            mimetype='multipart/x-mixed-replace; boundary=frame'
+        )
+            
+    except Exception as e:
+        return jsonify({'msg': 'Failed to get camera stream', 'error': str(e)}), 500
+
+@cameras_bp.route('/<int:camera_id>/snapshot')
+@jwt_required()
+def get_camera_snapshot(camera_id):
+    """Get a snapshot from the camera"""
+    try:
+        from app.camera_stream import get_snapshot_base64
+        
+        snapshot_b64 = get_snapshot_base64(camera_id)
+        if snapshot_b64:
+            return jsonify({
+                'snapshot': f'data:image/jpeg;base64,{snapshot_b64}',
+                'timestamp': datetime.now().isoformat()
+            })
+        else:
+            return jsonify({'msg': 'No snapshot available'}), 404
+            
+    except Exception as e:
+        return jsonify({'msg': 'Failed to get camera snapshot', 'error': str(e)}), 500
+
+@cameras_bp.route('/<int:camera_id>/stream/status')
+@jwt_required()
+def get_camera_stream_status(camera_id):
+    """Get streaming status for a camera"""
+    try:
+        from app.camera_stream import get_camera_stream_info
+        
+        stream_info = get_camera_stream_info(camera_id)
+        if stream_info:
+            return jsonify(stream_info)
+        else:
+            return jsonify({'status': 'not_streaming'})
+            
+    except Exception as e:
+        return jsonify({'msg': 'Failed to get stream status', 'error': str(e)}), 500
 
 @cameras_bp.route('/<int:camera_id>/test', methods=['POST'])
 @operator_required

@@ -44,6 +44,8 @@ cd f:\sen5\coll\coll\backend
 5. ✅ **Service Layer** - Fixed poller and alerting services
 6. ✅ **Database Models** - Verified all models work correctly
 7. ✅ **Configuration** - Proper environment variable handling
+8. ✅ **SNMP Device Monitoring** - Implemented real SNMP polling with PySNMP 7.x
+9. ✅ **RTSP Camera Streaming** - Implemented real RTSP streaming with OpenCV
 
 ### New Features Added:
 1. ✅ **Enhanced Startup Script** (`start.py`) - Better initialization
@@ -51,6 +53,9 @@ cd f:\sen5\coll\coll\backend
 3. ✅ **Windows Batch Files** - Easy one-click startup
 4. ✅ **Complete Documentation** - Setup guides and API docs
 5. ✅ **Default Users** - Auto-created admin, operator, viewer
+6. ✅ **SNMP Device Information** - Real device system info retrieval
+7. ✅ **RTSP Live Streaming** - Real-time camera video feeds
+8. ✅ **MJPEG Stream Support** - Browser-compatible video streaming
 
 ---
 
@@ -213,12 +218,14 @@ All endpoints documented in `backend/SETUP_GUIDE.md`
 ### Core (Always Available)
 - ✅ User authentication (JWT)
 - ✅ Role-based access control
-- ✅ Device management
-- ✅ Camera management
+- ✅ Device management with SNMP monitoring
+- ✅ Camera management with RTSP streaming
 - ✅ Alert system
 - ✅ Status monitoring
 - ✅ Manual polling
 - ✅ Connection testing
+- ✅ Real SNMP device information retrieval
+- ✅ Live RTSP camera video streaming
 
 ### Optional (Requires Redis)
 - Automated device polling (every 5 min)
@@ -246,9 +253,11 @@ After you start:
 - [ ] Can access http://localhost:5000
 - [ ] Can login with admin credentials
 - [ ] Health endpoint returns OK
-- [ ] Can create a device
-- [ ] Can create a camera
+- [ ] Can create a device with SNMP community
+- [ ] Can create a camera with RTSP URL
 - [ ] Can create an alert
+- [ ] SNMP polling retrieves real device information
+- [ ] RTSP streaming displays live camera feeds
 - [ ] All tests pass
 
 ---

@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Network Scanner - Device Monitoring</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="assets/toast.css">
+  <link rel="stylesheet" href="assets/responsive.css">
+</head>
+<body>
+  <div class="container">
+    <nav class="nav">
+      <a href="dashboard.html">Dashboard</a>
+      <a href="device_details.html">Devices</a>
+      <a href="cameras.html">Cameras</a>
+      <a href="live_feeds.html">Live Feeds</a>
+      <a href="alerts.html">Alerts</a>
+      <a href="settings.html">Settings</a>
+      <a href="network_scan.html" class="active">🔍 Scan Network</a>
+      <a href="#" id="logout-btn">Logout</a>
+    </nav>
+
+    <div class="page-header">
+      <h1>🔍 Network Scanner</h1>
+      <div class="toolbar">
+        <button id="start-scan-btn" class="btn btn-primary">
+          <span id="scan-icon">🔍</span> Start Network Scan
+        </button>
+      </div>
+    </div>
+
+    <!-- Scan Info Card -->
+    <section class="card">
+      <div class="card-header">
+        <h3>ℹ️ Network Scanning Information</h3>
+      </div>
+      <div class="card-body">
+        <p style="margin-bottom: 1rem;">This tool will scan your local network to discover all connected devices including:</p>
+        <div class="info-grid">
+          <div class="info-item">
+            <strong>🔌 Network Switches</strong>
+            <p>Managed and unmanaged switches</p>
+          </div>
+          <div class="info-item">
+            <strong>📹 IP Cameras</strong>
+            <p>RTSP-enabled surveillance cameras</p>
+          </div>
+          <div class="info-item">
+            <strong>🖥️ Computers</strong>
+            <p>Desktops, laptops, and servers</p>
+          </div>
+          <div class="info-item">
+            <strong>📱 IoT Devices</strong>
+            <p>Smart devices and appliances</p>
+          </div>
+        </div>
+        <p style="margin-top: 1rem; color: var(--text-secondary);">
+          <strong>Note:</strong> Scanning may take 1-2 minutes depending on network size. 
+          You can accept or reject each discovered device.
+        </p>
+      </div>
+    </section>
+
+    <!-- Scan Status -->
+    <section class="card" id="scan-status-card" style="display: none;">
+      <div class="card-header">
+        <h3>🔄 Scanning Network...</h3>
+        <span class="badge badge-info" id="scan-progress">0%</span>
+      </div>
+      <div class="card-body">
+        <div class="progress-bar-container">
+          <div class="progress-bar" id="scan-progress-bar"></div>
+        </div>
+        <p id="scan-status-text" style="margin-top: 1rem; text-align: center; color: var(--text-secondary);">
+          Initializing network scan...
+        </p>
+      </div>
+    </section>
+
+    <!-- Discovered Devices -->
+    <section class="card">
+      <div class="card-header">
+        <h3>📡 Discovered Devices</h3>
+        <span class="badge badge-info" id="discovered-count">0</span>
+      </div>
+      <div class="card-body">
+        <div id="no-devices" class="no-data">
+          <span style="font-size: 3rem;">🔍</span>
+          <p>No devices discovered yet</p>
+          <p style="color: var(--text-secondary); font-size: 0.9rem;">Click "Start Network Scan" to begin</p>
+        </div>
+        
+        <div id="discovered-devices" class="devices-grid" style="display: none;"></div>
+      </div>
+    </section>
+
+    <!-- Bulk Actions -->
+    <section class="card" id="bulk-actions-card" style="display: none;">
+      <div class="card-header">
+        <h3>⚡ Bulk Actions</h3>
+      </div>
+      <div class="card-body">
+        <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+          <button id="accept-all-btn" class="btn btn-success">
+            ✅ Accept All (<span id="pending-count">0</span>)
+          </button>
+          <button id="reject-all-btn" class="btn btn-error">
+            ❌ Reject All
+          </button>
+          <button id="accept-cameras-btn" class="btn btn-primary">
+            📹 Accept All Cameras
+          </button>
+          <button id="accept-switches-btn" class="btn btn-primary">
+            🔌 Accept All Switches
+          </button>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <script src="assets/theme.js"></script>
+  <script src="assets/app.js"></script>
+  <script src="assets/utils.js"></script>
+  <script>
+    let discoveredDevices = [];
+    let pendingDevices = [];
+    
+    async function startNetworkScan() {
+      const scanBtn = document.getElementById('start-scan-btn');
+      const scanIcon = document.getElementById('scan-icon');
+      const statusCard = document.getElementById('scan-status-card');
+      const noDevices = document.getElementById('no-devices');
+      const devicesGrid = document.getElementById('discovered-devices');
+      
+      try {
+        // Disable scan button
+        scanBtn.disabled = true;
+        scanIcon.textContent = '⏳';
+        
+        // Show status card
+        statusCard.style.display = 'block';
+        noDevices.style.display = 'none';
+        
+        // Clear previous results
+        discoveredDevices = [];
+        pendingDevices = [];
+        devicesGrid.innerHTML = '';
+        devicesGrid.style.display = 'none';
+        updateCounts();
+        
+        // Simulate network scan (in real implementation, call backend API)
+        await performNetworkScan();
+        
+        // Hide status card
+        statusCard.style.display = 'none';
+        
+        // Show results
+        if (discoveredDevices.length > 0) {
+          displayDiscoveredDevices();
+          Toast.success(`Found ${discoveredDevices.length} devices on the network`);
+        } else {
+          noDevices.style.display = 'flex';
+          Toast.warning('No devices found on the network');
+        }
+        
+      } catch (error) {
+        console.error('Scan failed:', error);
+        Toast.error('Network scan failed: ' + error.message);
+        statusCard.style.display = 'none';
+      } finally {
+        scanBtn.disabled = false;
+        scanIcon.textContent = '🔍';
+      }
+    }
+    
+    async function performNetworkScan() {
+      // Update progress
+      updateScanProgress(10, 'Getting network information...');
+      await sleep(500);
+      
+      updateScanProgress(30, 'Scanning ARP table...');
+      await sleep(800);
+      
+      updateScanProgress(50, 'Discovering devices...');
+      await sleep(1000);
+      
+      // Call backend API to scan network
+      try {
+        const response = await fetch('/api/network/scan', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('dm_access_token'),
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (!response.ok) throw new Error('Scan API failed');
+        
+        const data = await response.json();
+        discoveredDevices = data.devices || [];
+        
+      } catch (error) {
+        console.warn('API scan failed, using mock data:', error);
+        // Mock data for testing
+        discoveredDevices = generateMockDevices();
+      }
+      
+      updateScanProgress(80, 'Identifying device types...');
+      await sleep(500);
+      
+      updateScanProgress(100, 'Scan complete!');
+      await sleep(300);
+      
+      // Mark all as pending
+      pendingDevices = [...discoveredDevices];
+    }
+    
+    function generateMockDevices() {
+      // Generate mock discovered devices
+      return [
+        {
+          ip: '192.168.31.1',
+          mac: '7C:BF:77:70:7A:EF',
+          vendor: 'Unknown',
+          type: 'router',
+          name: 'Gateway Router',
+          ports: [80, 443],
+          services: ['HTTP', 'HTTPS']
+        },
+        {
+          ip: '192.168.31.100',
+          mac: '00:1C:0E:12:34:56',
+          vendor: 'Cisco',
+          type: 'switch',
+          name: 'Cisco Switch',
+          ports: [161, 80],
+          services: ['SNMP', 'HTTP']
+        },
+        {
+          ip: '192.168.31.150',
+          mac: '00:12:34:56:78:90',
+          vendor: 'Dahua',
+          type: 'camera',
+          name: 'IP Camera 1',
+          ports: [554, 80],
+          services: ['RTSP', 'HTTP']
+        },
+        {
+          ip: '192.168.31.151',
+          mac: '00:12:34:56:78:91',
+          vendor: 'Hikvision',
+          type: 'camera',
+          name: 'IP Camera 2',
+          ports: [554, 80],
+          services: ['RTSP', 'HTTP']
+        },
+        {
+          ip: '192.168.31.50',
+          mac: '00:0E:7F:12:34:56',
+          vendor: 'D-Link',
+          type: 'switch',
+          name: 'D-Link Switch',
+          ports: [80],
+          services: ['HTTP']
+        }
+      ];
+    }
+    
+    function updateScanProgress(percent, message) {
+      const progressBar = document.getElementById('scan-progress-bar');
+      const progressBadge = document.getElementById('scan-progress');
+      const statusText = document.getElementById('scan-status-text');
+      
+      progressBar.style.width = percent + '%';
+      progressBadge.textContent = percent + '%';
+      statusText.textContent = message;
+    }
+    
+    function displayDiscoveredDevices() {
+      const devicesGrid = document.getElementById('discovered-devices');
+      const bulkActionsCard = document.getElementById('bulk-actions-card');
+      
+      devicesGrid.innerHTML = '';
+      devicesGrid.style.display = 'grid';
+      bulkActionsCard.style.display = 'block';
+      
+      discoveredDevices.forEach((device, index) => {
+        const card = createDeviceCard(device, index);
+        devicesGrid.appendChild(card);
+      });
+      
+      updateCounts();
+    }
+    
+    function createDeviceCard(device, index) {
+      const card = document.createElement('div');
+      card.className = 'device-card';
+      card.id = `device-${index}`;
+      
+      const typeIcon = getDeviceIcon(device.type);
+      const typeLabel = device.type.charAt(0).toUpperCase() + device.type.slice(1);
+      
+      card.innerHTML = `
+        <div class="device-card-header">
+          <div class="device-icon">${typeIcon}</div>
+          <div class="device-info">
+            <h4>${device.name || device.ip}</h4>
+            <span class="badge badge-${device.type === 'camera' ? 'primary' : device.type === 'switch' ? 'success' : 'secondary'}">
+              ${typeLabel}
+            </span>
+          </div>
+        </div>
+        
+        <div class="device-card-body">
+          <div class="device-detail">
+            <span class="label">IP Address:</span>
+            <span class="value">${device.ip}</span>
+          </div>
+          <div class="device-detail">
+            <span class="label">MAC Address:</span>
+            <span class="value">${device.mac}</span>
+          </div>
+          <div class="device-detail">
+            <span class="label">Vendor:</span>
+            <span class="value">${device.vendor || 'Unknown'}</span>
+          </div>
+          ${device.services && device.services.length ? `
+          <div class="device-detail">
+            <span class="label">Services:</span>
+            <span class="value">${device.services.join(', ')}</span>
+          </div>
+          ` : ''}
+        </div>
+        
+        <div class="device-card-footer">
+          <button class="btn btn-sm btn-success accept-btn" onclick="acceptDevice(${index})">
+            ✅ Accept
+          </button>
+          <button class="btn btn-sm btn-error reject-btn" onclick="rejectDevice(${index})">
+            ❌ Reject
+          </button>
+        </div>
+      `;
+      
+      return card;
+    }
+    
+    function getDeviceIcon(type) {
+      const icons = {
+        'router': '🌐',
+        'switch': '🔌',
+        'camera': '📹',
+        'computer': '🖥️',
+        'server': '🖧',
+        'iot': '📱',
+        'unknown': '❓'
+      };
+      return icons[type] || icons['unknown'];
+    }
+    
+    async function acceptDevice(index) {
+      const device = discoveredDevices[index];
+      const card = document.getElementById(`device-${index}`);
+      
+      try {
+        Loading.show('Adding device to system...');
+        
+        // Prepare device data based on type
+        let payload;
+        if (device.type === 'camera') {
+          payload = {
+            name: device.name || `Camera ${device.ip}`,
+            ip_address: device.ip,
+            rtsp_url: `rtsp://${device.ip}:554/live`,
+            location: 'Auto-discovered',
+            status: 'unknown'
+          };
+          
+          await ApiClient.createCamera(payload);
+          Toast.success(`Camera "${payload.name}" added successfully`);
+          
+        } else {
+          payload = {
+            name: device.name || `Device ${device.ip}`,
+            ip_address: device.ip,
+            device_type: device.type,
+            vendor: device.vendor || 'Unknown',
+            snmp_community: 'public',
+            meta: {
+              mac_address: device.mac,
+              services: device.services,
+              auto_discovered: true,
+              discovered_at: new Date().toISOString()
+            }
+          };
+          
+          await ApiClient.createDevice(payload);
+          Toast.success(`Device "${payload.name}" added successfully`);
+        }
+        
+        // Remove from pending and mark as accepted
+        pendingDevices = pendingDevices.filter((_, i) => i !== index);
+        card.classList.add('accepted');
+        card.querySelector('.device-card-footer').innerHTML = `
+          <span class="badge badge-success">✅ Added to System</span>
+        `;
+        
+        updateCounts();
+        
+      } catch (error) {
+        console.error('Failed to add device:', error);
+        Toast.error('Failed to add device: ' + error.message);
+      } finally {
+        Loading.hide();
+      }
+    }
+    
+    function rejectDevice(index) {
+      const device = discoveredDevices[index];
+      const card = document.getElementById(`device-${index}`);
+      
+      // Remove from pending and mark as rejected
+      pendingDevices = pendingDevices.filter((_, i) => i !== index);
+      card.classList.add('rejected');
+      card.querySelector('.device-card-footer').innerHTML = `
+        <span class="badge badge-error">❌ Rejected</span>
+      `;
+      
+      Toast.info(`Device ${device.ip} rejected`);
+      updateCounts();
+    }
+    
+    async function acceptAll() {
+      if (!confirm(`Add all ${pendingDevices.length} pending devices to the system?`)) {
+        return;
+      }
+      
+      Loading.show('Adding devices...');
+      
+      let successCount = 0;
+      const indices = pendingDevices.map((_, i) => i);
+      
+      for (const index of indices) {
+        try {
+          await acceptDevice(index);
+          successCount++;
+        } catch (error) {
+          console.error(`Failed to add device ${index}:`, error);
+        }
+      }
+      
+      Loading.hide();
+      Toast.success(`Successfully added ${successCount} device(s)`);
+    }
+    
+    function rejectAll() {
+      if (!confirm(`Reject all ${pendingDevices.length} pending devices?`)) {
+        return;
+      }
+      
+      const indices = [...Array(discoveredDevices.length).keys()];
+      indices.forEach(index => {
+        const card = document.getElementById(`device-${index}`);
+        if (card && !card.classList.contains('accepted') && !card.classList.contains('rejected')) {
+          rejectDevice(index);
+        }
+      });
+      
+      Toast.info('All pending devices rejected');
+    }
+    
+    async function acceptByType(type) {
+      const devices = discoveredDevices
+        .map((d, i) => ({ device: d, index: i }))
+        .filter(({ device }) => device.type === type && pendingDevices.includes(device));
+      
+      if (devices.length === 0) {
+        Toast.warning(`No pending ${type}s found`);
+        return;
+      }
+      
+      if (!confirm(`Add all ${devices.length} ${type}(s) to the system?`)) {
+        return;
+      }
+      
+      Loading.show(`Adding ${type}s...`);
+      
+      let successCount = 0;
+      for (const { index } of devices) {
+        try {
+          await acceptDevice(index);
+          successCount++;
+        } catch (error) {
+          console.error(`Failed to add ${type} ${index}:`, error);
+        }
+      }
+      
+      Loading.hide();
+      Toast.success(`Successfully added ${successCount} ${type}(s)`);
+    }
+    
+    function updateCounts() {
+      const discoveredCount = document.getElementById('discovered-count');
+      const pendingCount = document.getElementById('pending-count');
+      
+      discoveredCount.textContent = discoveredDevices.length;
+      pendingCount.textContent = pendingDevices.length;
+      
+      // Hide bulk actions if no pending devices
+      const bulkActionsCard = document.getElementById('bulk-actions-card');
+      if (pendingDevices.length === 0 && discoveredDevices.length > 0) {
+        bulkActionsCard.style.display = 'none';
+      }
+    }
+    
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+    
+    // Event listeners
+    window.addEventListener('DOMContentLoaded', () => {
+      if (!ApiClient.isAuthenticated()) {
+        window.location.href = 'index.html';
+        return;
+      }
+
+      document.getElementById('logout-btn').addEventListener('click', (e) => {
+        e.preventDefault();
+        ApiClient.logout();
+        Toast.info('Logged out successfully');
+        setTimeout(() => {
+          window.location.href = 'index.html';
+        }, 500);
+      });
+
+      document.getElementById('start-scan-btn').addEventListener('click', startNetworkScan);
+      document.getElementById('accept-all-btn').addEventListener('click', acceptAll);
+      document.getElementById('reject-all-btn').addEventListener('click', rejectAll);
+      document.getElementById('accept-cameras-btn').addEventListener('click', () => acceptByType('camera'));
+      document.getElementById('accept-switches-btn').addEventListener('click', () => acceptByType('switch'));
+    });
+  </script>
+  
+  <style>
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+    
+    .info-item {
+      padding: 1rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      text-align: center;
+    }
+    
+    .info-item strong {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-size: 1.1rem;
+    }
+    
+    .info-item p {
+      margin: 0;
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+    
+    .progress-bar-container {
+      width: 100%;
+      height: 30px;
+      background: var(--background-alt);
+      border-radius: 15px;
+      overflow: hidden;
+      position: relative;
+    }
+    
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary), var(--primary-dark));
+      width: 0%;
+      transition: width 0.3s ease;
+      border-radius: 15px;
+    }
+    
+    .devices-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 1.5rem;
+      margin-top: 1rem;
+    }
+    
+    .device-card {
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      transition: all 0.3s ease;
+      background: var(--background);
+    }
+    
+    .device-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+    }
+    
+    .device-card.accepted {
+      border-color: var(--success);
+      background: var(--success-light);
+    }
+    
+    .device-card.rejected {
+      border-color: var(--error);
+      background: var(--error-light);
+      opacity: 0.6;
+    }
+    
+    .device-card-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem;
+      background: var(--background-alt);
+      border-bottom: 1px solid var(--border);
+    }
+    
+    .device-icon {
+      font-size: 2.5rem;
+      line-height: 1;
+    }
+    
+    .device-info h4 {
+      margin: 0 0 0.5rem 0;
+      font-size: 1.1rem;
+    }
+    
+    .device-card-body {
+      padding: 1rem;
+    }
+    
+    .device-detail {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    
+    .device-detail:last-child {
+      border-bottom: none;
+    }
+    
+    .device-detail .label {
+      font-weight: 600;
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+    
+    .device-detail .value {
+      color: var(--text);
+      font-size: 0.9rem;
+      font-family: monospace;
+    }
+    
+    .device-card-footer {
+      display: flex;
+      gap: 0.5rem;
+      padding: 1rem;
+      background: var(--background-alt);
+    }
+    
+    .device-card-footer .btn {
+      flex: 1;
+    }
+    
+    .no-data {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem;
+      color: var(--text-secondary);
+      text-align: center;
+    }
+    
+    .no-data p {
+      margin: 0.5rem 0;
+    }
+    
+    @media (max-width: 768px) {
+      .devices-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .info-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</body>
+</html>

@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live Feeds - Device Monitoring</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="assets/toast.css">
+  <link rel="stylesheet" href="assets/responsive.css">
+</head>
+<body>
+  <div class="container">
+    <nav class="nav">
+      <a href="dashboard.html">Dashboard</a>
+      <a href="device_details.html">Devices</a>
+      <a href="cameras.html">Cameras</a>
+      <a href="live_feeds.html" class="active">Live Feeds</a>
+      <a href="alerts.html">Alerts</a>
+      <a href="settings.html">Settings</a>
+      <a href="network_scan.html">🔍 Scan Network</a>
+      <a href="#" id="logout-btn">Logout</a>
+    </nav>
+
+    <div class="page-header">
+      <h1>📹 Live Camera Feeds</h1>
+      <div class="toolbar">
+        <label for="max-feeds" style="margin-right: 0.5rem;">Max Feeds:</label>
+        <select id="max-feeds" class="input" style="width: auto; margin-right: 1rem;">
+          <option value="2">2 Cameras</option>
+          <option value="4" selected>4 Cameras</option>
+          <option value="6">6 Cameras</option>
+          <option value="8">8 Cameras</option>
+        </select>
+        <button id="refresh-feeds" class="btn btn-secondary">
+          <span id="refresh-icon">🔄</span> Refresh
+        </button>
+      </div>
+    </div>
+
+    <!-- Camera Feeds Section -->
+    <section class="card">
+      <div class="card-header">
+        <h3>Active Camera Streams</h3>
+        <span class="badge badge-info" id="feeds-count">0</span>
+      </div>
+      <div class="card-body">
+        <div id="feeds-loading" class="loading-state" style="display: none;">
+          <div class="spinner"></div>
+          <p>Loading camera feeds...</p>
+        </div>
+
+        <div id="no-feeds" class="no-data" style="display: none;">
+          <span style="font-size: 3rem;">📹</span>
+          <p>No online cameras available</p>
+          <a href="cameras.html" class="btn btn-primary">Manage Cameras</a>
+        </div>
+
+        <div id="camera-feeds" class="camera-grid"></div>
+      </div>
+    </section>
+  </div>
+
+  <script src="assets/theme.js"></script>
+  <script src="assets/app.js"></script>
+  <script src="assets/utils.js"></script>
+  <script>
+    let maxConcurrentStreams = 4;
+    
+    async function loadCameraFeeds() {
+      const feedsContainer = document.getElementById('camera-feeds');
+      const loadingEl = document.getElementById('feeds-loading');
+      const noFeedsEl = document.getElementById('no-feeds');
+      const countBadge = document.getElementById('feeds-count');
+      
+      try {
+        loadingEl.style.display = 'block';
+        noFeedsEl.style.display = 'none';
+        feedsContainer.innerHTML = '';
+        
+        const cameras = await ApiClient.listCameras();
+        const onlineCameras = cameras.filter(cam => cam.status === 'online');
+        
+        // Limit to max concurrent streams
+        const displayCameras = onlineCameras.slice(0, maxConcurrentStreams);
+        
+        if (!displayCameras.length) {
+          noFeedsEl.style.display = 'block';
+          countBadge.textContent = '0';
+          return;
+        }
+        
+        countBadge.textContent = displayCameras.length;
+        
+        feedsContainer.innerHTML = displayCameras.map(cam => `
+          <div class="camera-feed-card">
+            <div class="feed-header">
+              <h4>${cam.name}</h4>
+              <div class="feed-controls">
+                <button class="btn btn-sm btn-success" onclick="startStream(${cam.id}, '${cam.name}')">
+                  ▶️ Start Stream
+                </button>
+                <button class="btn btn-sm btn-danger" onclick="stopStream(${cam.id}, '${cam.name}')" style="display: none;">
+                  ⏹️ Stop Stream
+                </button>
+                <span class="status-indicator status-${cam.status === 'online' ? 'online' : 'offline'}">● ${cam.status === 'online' ? 'Online' : 'Offline'}</span>
+              </div>
+            </div>
+            
+            <div class="feed-container" id="feed-${cam.id}">
+              <div class="feed-placeholder">
+                <div class="feed-icon">📹</div>
+                <div class="feed-label">Click "Start Stream" to begin</div>
+                <div class="feed-info">${cam.location || 'No location set'}</div>
+              </div>
+            </div>
+            
+            <div class="feed-details">
+              <div class="detail-row">
+                <span class="detail-label">Location:</span>
+                <span class="detail-value">${cam.location || 'Not set'}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">IP:</span>
+                <span class="detail-value">${cam.ip_address || 'N/A'}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Status:</span>
+                <span class="detail-value">${cam.status || 'Unknown'}</span>
+              </div>
+            </div>
+          </div>
+        `).join('');
+        
+      } catch (e) {
+        console.error('Failed to load camera feeds:', e);
+        Toast.error('Failed to load camera feeds');
+        noFeedsEl.style.display = 'block';
+        feedsContainer.innerHTML = `
+          <div class="error-message">
+            <span style="font-size: 2rem;">⚠️</span>
+            <p>Failed to load camera feeds</p>
+            <button class="btn btn-primary" onclick="loadCameraFeeds()">Try Again</button>
+          </div>
+        `;
+      } finally {
+        loadingEl.style.display = 'none';
+      }
+    }
+    
+    function updateMaxFeeds() {
+      const select = document.getElementById('max-feeds');
+      maxConcurrentStreams = parseInt(select.value);
+      loadCameraFeeds();
+    }
+    
+    function copyRtspUrl(rtspUrl, cameraName) {
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(rtspUrl).then(() => {
+          Toast.success(`RTSP URL copied for ${cameraName}`);
+        }).catch(() => {
+          Toast.error('Failed to copy URL');
+        });
+      } else {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = rtspUrl;
+        document.body.appendChild(textArea);
+        textArea.select();
+        try {
+          document.execCommand('copy');
+          Toast.success(`RTSP URL copied for ${cameraName}`);
+        } catch (err) {
+          Toast.error('Failed to copy URL');
+        }
+        document.body.removeChild(textArea);
+      }
+    }
+    
+    function openStream(rtspUrl, cameraName) {
+      // Try to open with system default application
+      const vlcUrl = `vlc://${rtspUrl}`;
+      
+      // First, copy to clipboard
+      copyRtspUrl(rtspUrl, cameraName);
+      
+      // Try to open in new window (may trigger protocol handler if configured)
+      try {
+        window.open(vlcUrl, '_blank');
+      } catch (e) {
+        console.log('Protocol handler not available');
+      }
+      
+      // Show instruction toast
+      Toast.info(`Open VLC or similar player and paste the URL to view ${cameraName}`, 5000);
+    }
+    
+    async function startStream(cameraId, cameraName) {
+      try {
+        const response = await fetch(`/api/cameras/${cameraId}/stream/start`, {
+          method: 'POST',
+          headers: ApiClient.getHeaders()
+        });
+        
+        if (response.ok) {
+          Toast.success(`Stream started for ${cameraName}`);
+          
+          // Update UI
+          const feedContainer = document.getElementById(`feed-${cameraId}`);
+          const startBtn = feedContainer.closest('.camera-feed-card').querySelector('.btn-success');
+          const stopBtn = feedContainer.closest('.camera-feed-card').querySelector('.btn-danger');
+          
+          startBtn.style.display = 'none';
+          stopBtn.style.display = 'inline-block';
+          
+          // Start displaying the stream
+          feedContainer.innerHTML = `
+            <img src="/api/cameras/${cameraId}/stream/live" 
+                 alt="${cameraName} Live Stream" 
+                 style="width: 100%; height: 100%; object-fit: cover;"
+                 onerror="handleStreamError(${cameraId}, '${cameraName}')">
+          `;
+          
+        } else {
+          const error = await response.json();
+          Toast.error(`Failed to start stream: ${error.msg || 'Unknown error'}`);
+        }
+      } catch (e) {
+        console.error('Failed to start stream:', e);
+        Toast.error('Failed to start stream');
+      }
+    }
+    
+    async function stopStream(cameraId, cameraName) {
+      try {
+        const response = await fetch(`/api/cameras/${cameraId}/stream/stop`, {
+          method: 'POST',
+          headers: ApiClient.getHeaders()
+        });
+        
+        if (response.ok) {
+          Toast.success(`Stream stopped for ${cameraName}`);
+          
+          // Update UI
+          const feedContainer = document.getElementById(`feed-${cameraId}`);
+          const startBtn = feedContainer.closest('.camera-feed-card').querySelector('.btn-success');
+          const stopBtn = feedContainer.closest('.camera-feed-card').querySelector('.btn-danger');
+          
+          startBtn.style.display = 'inline-block';
+          stopBtn.style.display = 'none';
+          
+          // Show placeholder
+          feedContainer.innerHTML = `
+            <div class="feed-placeholder">
+              <div class="feed-icon">📹</div>
+              <div class="feed-label">Click "Start Stream" to begin</div>
+              <div class="feed-info">Stream stopped</div>
+            </div>
+          `;
+          
+        } else {
+          const error = await response.json();
+          Toast.error(`Failed to stop stream: ${error.msg || 'Unknown error'}`);
+        }
+      } catch (e) {
+        console.error('Failed to stop stream:', e);
+        Toast.error('Failed to stop stream');
+      }
+    }
+    
+    function handleStreamError(cameraId, cameraName) {
+      console.error(`Stream error for ${cameraName}`);
+      Toast.error(`Stream error for ${cameraName}`);
+      
+      // Reset to placeholder
+      const feedContainer = document.getElementById(`feed-${cameraId}`);
+      const startBtn = feedContainer.closest('.camera-feed-card').querySelector('.btn-success');
+      const stopBtn = feedContainer.closest('.camera-feed-card').querySelector('.btn-danger');
+      
+      startBtn.style.display = 'inline-block';
+      stopBtn.style.display = 'none';
+      
+      feedContainer.innerHTML = `
+        <div class="feed-placeholder">
+          <div class="feed-icon">⚠️</div>
+          <div class="feed-label">Stream Error</div>
+          <div class="feed-info">Click "Start Stream" to retry</div>
+        </div>
+      `;
+    }
+    
+    window.addEventListener('DOMContentLoaded', async () => {
+      if (!ApiClient.isAuthenticated()) {
+        window.location.href = 'index.html';
+        return;
+      }
+
+      document.getElementById('logout-btn').addEventListener('click', (e) => {
+        e.preventDefault();
+        ApiClient.logout();
+        Toast.info('Logged out successfully');
+        setTimeout(() => {
+          window.location.href = 'index.html';
+        }, 500);
+      });
+
+      document.getElementById('refresh-feeds').addEventListener('click', async () => {
+        await loadCameraFeeds();
+        Toast.success('Feeds refreshed');
+      });
+      
+      document.getElementById('max-feeds').addEventListener('change', updateMaxFeeds);
+
+      // Load initial data
+      Loading.show('Loading camera feeds...');
+      await loadCameraFeeds();
+      Loading.hide();
+    });
+  </script>
+  
+  <style>
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    
+    .camera-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 1.5rem;
+      margin-top: 1rem;
+    }
+    
+    .camera-feed-card {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      background: var(--background);
+    }
+    
+    .camera-feed-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+    }
+    
+    .feed-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem;
+      background: var(--background-alt);
+      border-bottom: 1px solid var(--border);
+    }
+    
+    .feed-controls {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .feed-header h4 {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 600;
+    }
+    
+    .status-indicator {
+      font-size: 0.85rem;
+      font-weight: 500;
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+    }
+    
+    .status-online {
+      background: var(--success-light);
+      color: var(--success);
+    }
+    
+    .feed-placeholder {
+      aspect-ratio: 16/9;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .feed-placeholder::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 10px,
+        rgba(255,255,255,0.03) 10px,
+        rgba(255,255,255,0.03) 20px
+      );
+    }
+    
+    .feed-icon {
+      font-size: 3rem;
+      margin-bottom: 0.5rem;
+      z-index: 1;
+    }
+    
+    .feed-label {
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+      z-index: 1;
+    }
+    
+    .feed-info {
+      font-size: 0.9rem;
+      opacity: 0.9;
+      z-index: 1;
+    }
+    
+    .feed-actions {
+      display: flex;
+      gap: 0.5rem;
+      padding: 1rem;
+      background: var(--background-alt);
+    }
+    
+    .feed-actions .btn {
+      flex: 1;
+    }
+    
+    .feed-details {
+      padding: 1rem;
+    }
+    
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    
+    .detail-row:last-child {
+      border-bottom: none;
+    }
+    
+    .detail-label {
+      font-weight: 600;
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+    
+    .detail-value {
+      color: var(--text);
+      font-size: 0.9rem;
+    }
+    
+    .loading-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem;
+      color: var(--text-secondary);
+    }
+    
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid var(--border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 1rem;
+    }
+    
+    .no-data {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem;
+      color: var(--text-secondary);
+      text-align: center;
+    }
+    
+    .no-data p {
+      margin: 1rem 0;
+      font-size: 1.1rem;
+    }
+    
+    .error-message {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem;
+      text-align: center;
+    }
+    
+    .error-message p {
+      color: var(--error);
+      margin: 1rem 0;
+      font-size: 1.1rem;
+    }
+    
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1.5rem;
+    }
+    
+    .info-item h4 {
+      margin-top: 0;
+      margin-bottom: 1rem;
+      color: var(--primary);
+    }
+    
+    .info-item ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    
+    .info-item li {
+      padding: 0.5rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    
+    .info-item li:last-child {
+      border-bottom: none;
+    }
+    
+    .info-item code {
+      background: var(--background-alt);
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      color: var(--primary);
+    }
+    
+    @media (max-width: 768px) {
+      .camera-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      
+      .toolbar {
+        width: 100%;
+      }
+      
+      .toolbar select,
+      .toolbar button {
+        flex: 1;
+      }
+    }
+  </style>
+</body>
+</html>

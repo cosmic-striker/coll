@@ -12,8 +12,10 @@
       <a href="dashboard.html">Dashboard</a>
       <a href="device_details.html">Devices</a>
       <a href="cameras.html">Cameras</a>
+      <a href="live_feeds.html">Live Feeds</a>
       <a href="alerts.html">Alerts</a>
       <a href="settings.html" class="active">Settings</a>
+      <a href="network_scan.html">🔍 Scan Network</a>
       <a href="#" id="logout-btn">Logout</a>
     </nav>
 
@@ -88,6 +90,7 @@
 
   <script src="assets/theme.js"></script>
   <script src="assets/app.js"></script>
+  <script src="assets/utils.js"></script>
   <script>
     async function loadSystemInfo() {
       try {
@@ -136,8 +139,11 @@
 
       document.getElementById('logout-btn').addEventListener('click', (e) => { 
         e.preventDefault(); 
-        ApiClient.logout(); 
-        window.location.href = 'index.html'; 
+        ApiClient.logout();
+        Toast.info('Logged out successfully');
+        setTimeout(() => {
+          window.location.href = 'index.html';
+        }, 500);
       });
 
       document.getElementById('reset-settings').addEventListener('click', resetSettings);
@@ -208,7 +214,25 @@
         }
       });
 
+      // Load existing settings
+      async function loadSettings() {
+        try {
+          const settings = await ApiClient.getSettings();
+          document.getElementById('poll_interval').value = settings.poll_interval || 60;
+          document.getElementById('alert_email_from').value = settings.alert_email_from || '';
+          document.getElementById('alert_email_to').value = settings.alert_email_to || '';
+          document.getElementById('smtp_server').value = settings.smtp_server || '';
+          document.getElementById('smtp_port').value = settings.smtp_port || 587;
+          document.getElementById('smtp_username').value = settings.smtp_username || '';
+          document.getElementById('smtp_password').value = settings.smtp_password || '';
+          document.getElementById('slack_webhook').value = settings.slack_webhook || '';
+        } catch (err) {
+          console.error('Failed to load settings:', err);
+        }
+      }
+
       loadSystemInfo();
+      loadSettings();
     });
   </script>
 </body>

@@ -200,6 +200,21 @@ body {
   opacity: 1;
 }
 
+/* Scan Network button alignment */
+.nav a[href="network_scan.html"] {
+  margin-left: auto;
+  background: linear-gradient(135deg, var(--info), var(--primary));
+  color: white !important;
+  font-weight: 600;
+  box-shadow: 0 4px 12px var(--info-glow);
+}
+
+.nav a[href="network_scan.html"]:hover {
+  background: linear-gradient(135deg, var(--info-light), var(--primary-light));
+  box-shadow: 0 6px 16px var(--info-glow);
+  transform: translateY(-2px);
+}
+
 /* Typography - Modern & Clean */
 h1 {
   margin: 0 0 24px;

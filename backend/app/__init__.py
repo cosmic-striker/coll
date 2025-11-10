@@ -46,11 +46,13 @@ def create_app(config_class=None):
     from app.routes.devices import devices_bp
     from app.routes.cameras import cameras_bp
     from app.routes.alerts import alerts_bp
+    from app.routes.settings import settings_bp
 
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(devices_bp, url_prefix='/api/devices')
     app.register_blueprint(cameras_bp, url_prefix='/api/cameras')
     app.register_blueprint(alerts_bp, url_prefix='/api/alerts')
+    app.register_blueprint(settings_bp, url_prefix='/api/settings')
 
     # Initialize Celery
     global celery

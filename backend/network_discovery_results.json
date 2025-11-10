@@ -1,0 +1,136 @@
+{
+  "timestamp": "2025-11-09 11:27:41.422874",
+  "total_devices": 15,
+  "switches_found": 0,
+  "switches": [],
+  "all_devices": [
+    {
+      "ip": "192.168.31.1",
+      "mac": "7C:BF:77:70:7A:EF",
+      "vendor": "Unknown",
+      "type": "Web Server/Device",
+      "ports": [
+        80,
+        443,
+        8080
+      ],
+      "services": [
+        "HTTP",
+        "HTTPS",
+        "HTTP-Alt"
+      ]
+    },
+    {
+      "ip": "192.168.31.255",
+      "mac": "FF:FF:FF:FF:FF:FF",
+      "vendor": "Unknown",
+      "type": "Unknown",
+      "ports": [],
+      "services": []
+    },
+    {
+      "ip": "224.0.0.22",
+      "mac": "01:00:5E:00:00:16",
+      "vendor": "Unknown",
+      "type": "Unknown",
+      "ports": [],
+      "services": []
+    },
+    {
+      "ip": "224.0.0.251",
+      "mac": "01:00:5E:00:00:FB",
+      "vendor": "Unknown",
+      "type": "Unknown",
+      "ports": [],
+      "services": []
+    },
+    {
+      "ip": "224.0.0.252",
+      "mac": "01:00:5E:00:00:FC",
+      "vendor": "Unknown",
+      "type": "Unknown",
+      "ports": [],
+      "services": []
+    },
+    {
+      "ip": "224.77.77.77",
+      "mac": "01:00:5E:4D:4D:4D",
+      "vendor": "Unknown",
+      "type": "Unknown",
+      "ports": [],
+      "services": []
+    },
+    {
+      "ip": "239.255.255.250",
+      "mac": "01:00:5E:7F:FF:FA",
+      "vendor": "Unknown",
+      "type": "Unknown",
+      "ports": [],
+      "services": []
+    },
+    {
+      "ip": "255.255.255.255",
+      "mac": "FF:FF:FF:FF:FF:FF",
+      "vendor": "Unknown",
+      "type": "Unknown",
+      "ports": [],
+      "services": []
+    },
+    {
+      "ip": "169.254.255.255",
+      "mac": "FF:FF:FF:FF:FF:FF",
+      "vendor": "Unknown",
+      "type": "Unknown",
+      "ports": [],
+      "services": []
+    },
+    {
+      "ip": "224.0.0.22",
+      "mac": "01:00:5E:00:00:16",
+      "vendor": "Unknown",
+      "type": "Unknown",
+      "ports": [],
+      "services": []
+    },
+    {
+      "ip": "224.0.0.251",
+      "mac": "01:00:5E:00:00:FB",
+      "vendor": "Unknown",
+      "type": "Unknown",
+      "ports": [],
+      "services": []
+    },
+    {
+      "ip": "224.0.0.252",
+      "mac": "01:00:5E:00:00:FC",
+      "vendor": "Unknown",
+      "type": "Unknown",
+      "ports": [],
+      "services": []
+    },
+    {
+      "ip": "224.77.77.77",
+      "mac": "01:00:5E:4D:4D:4D",
+      "vendor": "Unknown",
+      "type": "Unknown",
+      "ports": [],
+      "services": []
+    },
+    {
+      "ip": "239.255.255.250",
+      "mac": "01:00:5E:7F:FF:FA",
+      "vendor": "Unknown",
+      "type": "Unknown",
+      "ports": [],
+      "services": []
+    },
+    {
+      "ip": "255.255.255.255",
+      "mac": "FF:FF:FF:FF:FF:FF",
+      "vendor": "Unknown",
+      "type": "Unknown",
+      "ports": [],
+      "services": []
+    }
+  ]
+}

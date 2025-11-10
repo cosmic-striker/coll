@@ -12,8 +12,10 @@
       <a href="dashboard.html">Dashboard</a>
       <a href="device_details.html">Devices</a>
       <a href="cameras.html">Cameras</a>
+      <a href="live_feeds.html">Live Feeds</a>
       <a href="alerts.html" class="active">Alerts</a>
       <a href="settings.html">Settings</a>
+      <a href="network_scan.html">🔍 Scan Network</a>
       <a href="#" id="logout-btn">Logout</a>
     </nav>
 
@@ -110,6 +112,7 @@
 
   <script src="assets/theme.js"></script>
   <script src="assets/app.js"></script>
+  <script src="assets/utils.js"></script>
   <script>
     let page = 1; const per_page = 20; let lastPages = 1;
 
@@ -167,7 +170,14 @@
 
     window.addEventListener('DOMContentLoaded', () => {
       if (!ApiClient.isAuthenticated()) { window.location.href = 'index.html'; return; }
-      document.getElementById('logout-btn').addEventListener('click', (e) => { e.preventDefault(); ApiClient.logout(); window.location.href = 'index.html'; });
+      document.getElementById('logout-btn').addEventListener('click', (e) => { 
+        e.preventDefault(); 
+        ApiClient.logout();
+        Toast.info('Logged out successfully');
+        setTimeout(() => {
+          window.location.href = 'index.html';
+        }, 500);
+      });
 
       document.getElementById('a_filter').addEventListener('click', () => { page = 1; loadAlerts(); });
       document.getElementById('a_prev').addEventListener('click', () => { if (page > 1) { page--; loadAlerts(); } });

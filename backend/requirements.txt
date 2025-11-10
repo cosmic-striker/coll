@@ -25,3 +25,6 @@ typing-extensions==4.8.0
 kombu==5.3.4
 vine==5.1.0
 billiard==4.2.0
+pysnmp==6.0.13
+opencv-python==4.8.1.78
+ffmpeg-python==0.2.0

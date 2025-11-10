@@ -8,6 +8,20 @@ import requests
 from urllib.parse import urlparse
 import logging
 
+import asyncio
+
+# SNMP imports
+try:
+    from pysnmp.hlapi.v3arch.asyncio import *
+    SNMP_AVAILABLE = True
+except ImportError:
+    try:
+        from pysnmp.hlapi.v1arch.asyncio import *
+        SNMP_AVAILABLE = True
+    except ImportError:
+        SNMP_AVAILABLE = False
+        logging.warning("PySNMP not available, SNMP features will be limited")
+
 # Use shared_task decorator instead of getting celery instance
 # This avoids circular import issues
 
@@ -36,19 +50,120 @@ def poll_device_task(self, device_id):
     """Async task to poll a specific device"""
     return poll_device_sync(device_id)
 
+async def poll_device_snmp(ip_address, community, port=161, timeout=5):
+    """Poll device using SNMP to get system information"""
+    if not SNMP_AVAILABLE:
+        return False, {}
+
+    try:
+        device_info = {}
+
+        # SNMP OIDs for basic system information
+        oids = [
+            ('sysDescr', '1.3.6.1.2.1.1.1.0'),      # System description
+            ('sysName', '1.3.6.1.2.1.1.5.0'),       # System name
+            ('sysUpTime', '1.3.6.1.2.1.1.3.0'),     # System uptime
+            ('sysLocation', '1.3.6.1.2.1.1.6.0'),   # System location
+            ('sysContact', '1.3.6.1.2.1.1.4.0'),    # System contact
+            ('ifNumber', '1.3.6.1.2.1.2.1.0'),      # Number of interfaces
+        ]
+
+        # Create transport target
+        transport = await UdpTransportTarget.create((ip_address, port), timeout)
+
+        # Query each OID using hlapi
+        for name, oid in oids:
+            try:
+                errorIndication, errorStatus, errorIndex, varBinds = await get_cmd(
+                    SnmpEngine(),
+                    CommunityData(community),
+                    transport,
+                    ContextData(),
+                    ObjectType(ObjectIdentity(oid))
+                )
+
+                if errorIndication:
+                    logging.warning(f"SNMP error for {ip_address} OID {oid}: {errorIndication}")
+                    continue
+                elif errorStatus:
+                    logging.warning(f"SNMP error for {ip_address} OID {oid}: {errorStatus.prettyPrint()}")
+                    continue
+                else:
+                    for varBind in varBinds:
+                        value = varBind[1].prettyPrint()
+                        device_info[name] = value
+
+                        # Special handling for interface count
+                        if name == 'ifNumber':
+                            device_info['interface_count'] = int(value) if value.isdigit() else 0
+
+            except Exception as e:
+                logging.warning(f"Failed to query OID {oid} on {ip_address}: {str(e)}")
+                continue
+
+        # If we got at least system description, consider SNMP successful
+        if 'sysDescr' in device_info:
+            return True, device_info
+        else:
+            return False, {}
+
+    except Exception as e:
+        logging.error(f"SNMP polling failed for {ip_address}: {str(e)}")
+        return False, {}
+
 def poll_device_sync(device_id):
-    """Synchronous device polling function"""
+    """Synchronous device polling function with SNMP support"""
     try:
         device = Device.query.get(device_id)
         if not device:
             return {'error': 'Device not found'}
         
-        # Test connectivity using ping
-        is_online = ping_host(device.ip_address)
+        # Try SNMP polling first, fall back to ping if SNMP fails
+        snmp_success = False
+        snmp_data = {}
+        
+        if SNMP_AVAILABLE and device.snmp_community:
+            # Run async SNMP polling in event loop
+            try:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                snmp_success, snmp_data = loop.run_until_complete(
+                    poll_device_snmp(device.ip_address, device.snmp_community)
+                )
+                loop.close()
+            except Exception as e:
+                logging.warning(f"SNMP polling failed for device {device_id}: {str(e)}")
+                snmp_success = False
+                snmp_data = {}
+        
+        # If SNMP succeeded, device is online
+        if snmp_success:
+            is_online = True
+            device_info = snmp_data
+        else:
+            # Fall back to ping
+            is_online = ping_host(device.ip_address)
+            device_info = {}
         
         old_status = device.status
         device.status = 'online' if is_online else 'offline'
         device.last_seen = datetime.utcnow() if is_online else device.last_seen
+        
+        # Update device metadata with SNMP information
+        if snmp_data:
+            if not device.meta:
+                device.meta = {}
+            device.meta.update({
+                'snmp_available': True,
+                'system_description': snmp_data.get('sysDescr', ''),
+                'system_name': snmp_data.get('sysName', ''),
+                'system_uptime': snmp_data.get('sysUpTime', ''),
+                'interface_count': snmp_data.get('interface_count', 0),
+                'last_snmp_poll': datetime.utcnow().isoformat()
+            })
+        else:
+            if device.meta:
+                device.meta['snmp_available'] = False
         
         # Create alert if status changed to offline
         if old_status == 'online' and device.status == 'offline':
@@ -83,6 +198,8 @@ def poll_device_sync(device_id):
             'device_name': device.name,
             'ip_address': device.ip_address,
             'status': device.status,
+            'snmp_success': snmp_success,
+            'snmp_data': snmp_data,
             'last_seen': device.last_seen.isoformat() if device.last_seen else None,
             'status_changed': old_status != device.status
         }
@@ -130,8 +247,12 @@ def test_camera_sync(camera_id):
         is_reachable = ping_host(camera.ip_address)
         
         if is_reachable:
-            # Test RTSP stream if reachable
-            is_stream_available = test_rtsp_stream(camera.rtsp_url)
+            # Test RTSP stream using OpenCV
+            from app.camera_stream import test_rtsp_connection
+            rtsp_success, rtsp_message = test_rtsp_connection(
+                camera.rtsp_url, camera.username, camera.password
+            )
+            is_stream_available = rtsp_success
             camera.status = 'online' if is_stream_available else 'offline'
         else:
             camera.status = 'offline'

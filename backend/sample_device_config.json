@@ -1,0 +1,11 @@
+{
+  "device_name": "Network Switch/Router",
+  "ip_address": "192.168.31.1",
+  "device_type": "switch",
+  "snmp_version": "2c",
+  "snmp_community": "public",
+  "snmp_port": 161,
+  "poll_interval": 60,
+  "description": "Main gateway/router device",
+  "location": "Local Network"
+}

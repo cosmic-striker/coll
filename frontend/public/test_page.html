@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Quick Test - Settings & Logout</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 4px;
+            margin: 5px;
+        }
+        button:hover { background: #45a049; }
+        .error { color: red; }
+        .success { color: green; }
+        pre {
+            background: #f4f4f4;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Settings & Logout Test Page</h1>
+    
+    <div class="test-section">
+        <h2>1. Login First</h2>
+        <input type="text" id="username" placeholder="Username" value="admin">
+        <input type="password" id="password" placeholder="Password" value="Admin@123">
+        <button onclick="testLogin()">Login</button>
+        <div id="login-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. Test Settings API</h2>
+        <button onclick="testSettings()">Get Settings</button>
+        <button onclick="testUpdateSettings()">Update Settings</button>
+        <div id="settings-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. Test Logout</h2>
+        <button onclick="testLogout()">Logout</button>
+        <div id="logout-result"></div>
+    </div>
+
+    <script src="assets/app.js"></script>
+    <script src="assets/utils.js"></script>
+    <script>
+        async function testLogin() {
+            const result = document.getElementById('login-result');
+            result.innerHTML = 'Testing...';
+            
+            try {
+                const username = document.getElementById('username').value;
+                const password = document.getElementById('password').value;
+                
+                await ApiClient.login(username, password);
+                result.innerHTML = '<p class="success">✓ Login successful!</p>';
+                
+                // Show profile
+                const profile = await ApiClient.getProfile();
+                result.innerHTML += `<pre>${JSON.stringify(profile, null, 2)}</pre>`;
+            } catch (err) {
+                result.innerHTML = `<p class="error">✗ Login failed: ${err.message}</p>`;
+            }
+        }
+
+        async function testSettings() {
+            const result = document.getElementById('settings-result');
+            result.innerHTML = 'Testing...';
+            
+            if (!ApiClient.isAuthenticated()) {
+                result.innerHTML = '<p class="error">✗ Please login first!</p>';
+                return;
+            }
+            
+            try {
+                const settings = await ApiClient.getSettings();
+                result.innerHTML = '<p class="success">✓ Settings loaded successfully!</p>';
+                result.innerHTML += `<pre>${JSON.stringify(settings, null, 2)}</pre>`;
+            } catch (err) {
+                result.innerHTML = `<p class="error">✗ Failed to load settings: ${err.message}</p>`;
+                console.error('Settings error:', err);
+            }
+        }
+
+        async function testUpdateSettings() {
+            const result = document.getElementById('settings-result');
+            result.innerHTML = 'Testing update...';
+            
+            if (!ApiClient.isAuthenticated()) {
+                result.innerHTML = '<p class="error">✗ Please login first!</p>';
+                return;
+            }
+            
+            try {
+                const updated = await ApiClient.updateSettings({
+                    poll_interval: 120,
+                    alert_email_from: 'test@example.com'
+                });
+                result.innerHTML = '<p class="success">✓ Settings updated successfully!</p>';
+                result.innerHTML += `<pre>${JSON.stringify(updated, null, 2)}</pre>`;
+            } catch (err) {
+                result.innerHTML = `<p class="error">✗ Failed to update settings: ${err.message}</p>`;
+                console.error('Update error:', err);
+            }
+        }
+
+        function testLogout() {
+            const result = document.getElementById('logout-result');
+            
+            if (!ApiClient.isAuthenticated()) {
+                result.innerHTML = '<p class="error">✗ You are not logged in!</p>';
+                return;
+            }
+            
+            ApiClient.logout();
+            
+            if (!ApiClient.isAuthenticated()) {
+                result.innerHTML = '<p class="success">✓ Logout successful! Token cleared.</p>';
+                Toast.success('Logged out successfully');
+            } else {
+                result.innerHTML = '<p class="error">✗ Logout failed! Token still exists.</p>';
+            }
+        }
+
+        // Check auth status on load
+        window.addEventListener('DOMContentLoaded', () => {
+            if (ApiClient.isAuthenticated()) {
+                document.getElementById('login-result').innerHTML = 
+                    '<p class="success">✓ Already logged in!</p>';
+            }
+        });
+    </script>
+</body>
+</html>

@@ -71,8 +71,8 @@
     async deleteAlert(id) { return request(`/alerts/${id}`, { method: 'DELETE' }); },
     async alertsSummary() { return request('/alerts/summary'); },
     // Settings (admin only)
-    async getSettings() { return request('/settings'); },
-    async updateSettings(payload) { return request('/settings', { method: 'PUT', body: JSON.stringify(payload) }); },
+    async getSettings() { return request('/settings/'); },
+    async updateSettings(payload) { return request('/settings/', { method: 'PUT', body: JSON.stringify(payload) }); },
     async testEmail() { return request('/settings/test-email', { method: 'POST' }); },
     async testSlack() { return request('/settings/test-slack', { method: 'POST' }); },
     async restartPolling() { return request('/settings/restart-polling', { method: 'POST' }); },
